@@ -1,16 +1,23 @@
 class Popout {
     static onRenderJournalSheet(obj, html, data) {
-	let share_image = html.find(".share-image")
+	let element = html.find(".share-image")
+	Popout.addPopout(element)
+    }
+    static onRenderActorSheet(obj, html, data) {
+	let element = html.find(".configure-sheet")
+	Popout.addPopout(element, 'Hooks.on("ready", () =>setTimeout(game.actors.get("'  + obj.actor.id + '").sheet.render(true), 500)); $("#popout-main-div").css("pointer-events", "none"); console.log("done");')
+    }
+    static addPopout(element, custom_script) {
 	// Not a GM
-	if (share_image.length == 0) {
+	if (element.length != 1) {
 	    return;
 	}
 	let popout = $('<a class="popout" style><i class="fas fa-external-link-alt"></i>PopOut!</a>')
-	popout.on('click', Popout.onPopoutClicked)
-	popout.insertBefore(share_image)
+	popout.on('click', (event) => Popout.onPopoutClicked(event, custom_script))
+	popout.insertBefore(element)
 	
     }
-    static onPopoutClicked(event) {
+    static onPopoutClicked(event, custom_script, cb) {
 	let div = $(event.target).closest("div")
 	let window_title = div.find(".window-title").text().trim()
 
@@ -26,6 +33,8 @@ class Popout {
 	body.attr("class", $("body").attr("class"))
 	// Clone the journal sheet so we can modify it safely
 	div = div.clone()
+	// Avoid other apps with the same id from destroying this div
+	div.attr("id", "popout-main-div")
 	// Remove the buttons and forms because there are no JS hooks into them.
 	div.find("header a,form button,form .form-group,.window-resizable-handle").remove()
 	// Make sure any newly opened item doesn't get hidden behind it and set the size to the full window - padding.
@@ -39,24 +48,6 @@ class Popout {
 	body.append(div)
 	html.append(head)
 	html.append(body)
-	// Still can't open images to background since they are set as css background instead of <img src> :@
-	let prevent_contextmenu = `
-	document.superListener = document.addEventListener;
-	document.addEventListener = function(type, listener, useCapture){
-	    if(type != 'contextmenu')
-		document.superListener(type, listener, !!useCapture);
-	};
-	`
-	// Doesn't seem to work
-	let prevent_resize = `
-	window.superListener = window.addEventListener;
-	window.addEventListener = function(type, listener, useCapture){
-	    if(type != 'resize')
-		window.superListener(type, listener, !!useCapture);
-	};
-	`
-	head.append($("<script>" + prevent_contextmenu + "</script>"))
-	head.append($("<script>" + prevent_resize + "</script>"))
 
 	// Copy the scripts and css so the sheet appears correctly
 	for (let link of $("head link")) {
@@ -73,7 +64,10 @@ class Popout {
 		new_script.attr("src", script.src)
 	    head.append(new_script)
 	}
-
+	head.append($("<script>canvas = {};</script>"))
+	if (custom_script) {
+	    body.append($("<script>" + custom_script + "</script>"))
+	}
 	// Open new window and write the new html document into it
 	let win = window.open()
 	console.log(win)
@@ -83,7 +77,12 @@ class Popout {
 	} else {
 	    win.document.write(html[0].outerHTML)
 	}
+	if (cb != undefined) {
+	    cb(win)
+	}
     }
 }
 
 Hooks.on('renderJournalSheet', Popout.onRenderJournalSheet)
+Hooks.on('renderActorSheet5eCharacter', Popout.onRenderActorSheet)
+Hooks.on('renderActorSheet5eNPC', Popout.onRenderActorSheet)
