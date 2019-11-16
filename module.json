@@ -8,6 +8,6 @@
     "styles": [],
     "packs": [],
     "url": "https://github.com/kakaroto/fvtt-module-popout",
-    "manifest": "https://raw.githubusercontent.com/kakaroto/fvtt-module-popout/master/popout/module.json",
+    "manifest": "https://raw.githubusercontent.com/kakaroto/fvtt-module-popout/master/module.json",
     "download": "https://github.com/kakaroto/fvtt-module-popout/archive/master.zip"
 }
