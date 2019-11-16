@@ -3,7 +3,7 @@
 This Foundry VTT module lets you pop out journal entries into their own windows.
 
 # Installation
-Install using the URL : `https://raw.githubusercontent.com/kakaroto/fvtt-module-popout/master/popout/module.json`
+Install using the URL : `https://raw.githubusercontent.com/kakaroto/fvtt-module-popout/master/module.json`
 
 As DM go to the `Manage Modules` options menu in your World ('?' icon on the side bar) then enable the `PopOut!` module.
 
