@@ -1,27 +1,23 @@
-class Popout {
+class PopoutModule {
 	static onRenderJournalSheet(obj, html, data) {
 		let element = html.find(".window-header .window-title")
-		Popout.addPopout(obj.id, element)
+		PopoutModule.addPopout(element, `game.journal.get("${obj.entity.id}").sheet`);
 	}
 	static onRenderActorSheet(obj, html, data) {
 		let element = html.find(".window-header .window-title")
-		Popout.addPopout(obj.id, element, `
-	    Hooks.on('ready', () => game.actors.get("${obj.actor.id}").sheet.render(true));
-	    $("#popout-main-div").css("pointer-events", "none");
-        `);
+		PopoutModule.addPopout(element, `game.actors.get("${obj.entity.id}").sheet`);
 	}
-	static addPopout(id, element, custom_script) {
-		console.log("Adding popout to : ", element)
+	static addPopout(element, sheet) {
 		// Can't find it?
 		if (element.length != 1) {
 			return;
 		}
 		let popout = $('<a class="popout" style><i class="fas fa-external-link-alt"></i>PopOut!</a>')
-		popout.on('click', (event) => Popout.onPopoutClicked(event, id, custom_script))
+		popout.on('click', (event) => PopoutModule.onPopoutClicked(event, sheet))
 		element.after(popout)
 
 	}
-	static onPopoutClicked(event, id, custom_script, cb) {
+	static onPopoutClicked(event, sheet) {
 		let div = $(event.target).closest("div")
 		let window_title = div.find(".window-title").text().trim()
 
@@ -35,6 +31,7 @@ class Popout {
 		head.attr("class", $("head").attr("class"))
 		head.append($("<title>" + window_title + "</title>"))
 		body.attr("class", $("body").attr("class"))
+		/*
 		// Clone the journal sheet so we can modify it safely
 		div = div.clone()
 		// Avoid other apps with the same id from destroying this div
@@ -50,7 +47,7 @@ class Popout {
 			"left": "0",
 			"padding": "15px",
 		})
-		body.append(div)
+		body.append(div)*/
 		html.append(head)
 		html.append(body)
 
@@ -70,9 +67,6 @@ class Popout {
 			head.append(new_script)
 		}
 		head.append($("<script>canvas = {};</script>"))
-		if (custom_script) {
-			body.append($("<script>" + custom_script + "</script>"))
-		}
 		// Avoid having the UI initialized which renders the chatlog and all sorts
 		// of other things behind the sheet
 		body.append($(`<script>
@@ -97,6 +91,7 @@ class Popout {
 				ui.pause = new Pause()
 				ui.menu = new MainMenu();
 		      }
+			  Hooks.on('ready', () => PopoutModule.renderPopout(${sheet}));
 		      window.dispatchEvent(new Event('load'))
 		      </script>`))
 		// Open new window and write the new html document into it
@@ -112,20 +107,42 @@ class Popout {
 			// loading and emits the load event.
 			win.document.close()
 		}
-		if (cb != undefined) {
-			cb(win)
+	}
+
+	static renderPopout(sheet) {
+		console.log("RENDERING POPOUT SHEET : ", sheet)
+		sheet._original_popout_render = sheet._render
+		sheet.options.minimizable = false;
+		sheet.options.resizable = false;
+		sheet.options.id = "popout-" + sheet.id;
+		sheet.options.closeOnSubmit = false;
+		// Replace the render function so if it gets re-rendered (such as switching journal view mode), we can
+		// re-maximize it.
+		sheet._render = async function (...args) {
+			await this._original_popout_render(...args);
+			// In 0.4.1, there's a bug where a JournalSheet could return before it's done rendering.
+			while (!this._rendered) {
+				await new Promise((resolve) => setTimeout(() => resolve(), 0));
+			}
+			// Change the ID in case we open the same sheet again through cross links
+			sheet.element.attr('id', "popout-" + sheet.id);
+			// Maximum it
+			sheet.element.css({ width: "100%", height: "100%", top: "0px", left: "0px" })
+			// Remove the close and popout buttons
+			sheet.element.find("header .close, header .popout").remove()
 		}
+		sheet.render(true);
 	}
 }
 
 Hooks.on('ready', () => {
-	Hooks.on('renderJournalSheet', Popout.onRenderJournalSheet)
+	Hooks.on('renderJournalSheet', PopoutModule.onRenderJournalSheet)
 	// Hook to render on any actor sheets
 	let sheets = []
 	for (let type in CONFIG["Actor"].sheetClasses) {
 		sheets = sheets.concat(Object.values(CONFIG["Actor"].sheetClasses[type]))
 	}
 	for (let sheet of sheets.map(s => s.cls.name)) {
-		Hooks.on('render' + sheet, Popout.onRenderActorSheet)
+		Hooks.on('render' + sheet, PopoutModule.onRenderActorSheet)
 	}
 });
