@@ -110,22 +110,20 @@ class PopoutModule {
 	}
 
 	static renderPopout(sheet) {
-		console.log("RENDERING POPOUT SHEET : ", sheet)
 		sheet._original_popout_render = sheet._render
 		sheet.options.minimizable = false;
 		sheet.options.resizable = false;
 		sheet.options.id = "popout-" + sheet.id;
 		sheet.options.closeOnSubmit = false;
+		Object.defineProperty(sheet, 'id', { value: sheet.options.id, writable: true, configurable: true });
 		// Replace the render function so if it gets re-rendered (such as switching journal view mode), we can
 		// re-maximize it.
-		sheet._render = async function (...args) {
-			await this._original_popout_render(...args);
+		sheet._render = async function (force, options) {
+			await this._original_popout_render(true, options);
 			// In 0.4.1, there's a bug where a JournalSheet could return before it's done rendering.
 			while (!this._rendered) {
 				await new Promise((resolve) => setTimeout(() => resolve(), 0));
 			}
-			// Change the ID in case we open the same sheet again through cross links
-			sheet.element.attr('id', "popout-" + sheet.id);
 			// Maximum it
 			sheet.element.css({ width: "100%", height: "100%", top: "0px", left: "0px" })
 			// Remove the close and popout buttons
