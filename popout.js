@@ -66,31 +66,51 @@ class PopoutModule {
 				new_script.attr("src", script.src)
 			head.append(new_script)
 		}
-		head.append($("<script>canvas = {};</script>"))
+		// Create a callable canvas with a universal proxy so canvas.notes.placeables.filter() doesn't crash on journal updates.
+		head.append($("<script>handlers = {get: () => canvas, set: () => true}; canvas = new Proxy(() => canvas, handlers);</script>"))
 		// Avoid having the UI initialized which renders the chatlog and all sorts
 		// of other things behind the sheet
 		body.append($(`<script>
 		      Game.prototype.initializeUI = function() {
-				ui.nav = new SceneNavigation()
-				ui.controls = new SceneControls();
-				ui.notifications = new Notifications().render();
-				ui.sidebar = new Sidebar()
-				// sidebar elements only get created on the render
-				// but we don't want to render them
-				ui.chat = new ChatLog()
-				ui.combat = new CombatTracker()
-				ui.scenes = new SceneDirectory()
-				ui.actors = new ActorDirectory()
-				ui.items = new ItemDirectory()
-				ui.journal = new JournalDirectory()
-				ui.tables = new RollTableDirectory()
-				ui.playlists = new PlaylistDirectory()
-				ui.compendium = new CompendiumDirectory()
-				ui.settings = new Settings()
-				ui.players = new PlayerList()
-				ui.pause = new Pause()
-				ui.menu = new MainMenu();
-		      }
+							ui.nav = new SceneNavigation();
+							ui.controls = new SceneControls();
+							ui.notifications = new Notifications().render();
+							ui.sidebar = new Sidebar();
+							// Back to initializeUI 
+							ui.players = new PlayerList();
+							ui.hotbar = new Hotbar();
+							ui.webrtc = new CameraViews(this.webrtc);
+							ui.pause = new Pause();
+							ui.menu = new MainMenu();
+
+							// sidebar elements only get created on the render
+							// but we don't want to render them
+							ui.chat = new ChatLog({tabName: "chat"})
+							ui.combat = new CombatTracker({tabName: "combat"})
+							ui.scenes = new SceneDirectory({tabName: "scenes"})
+							ui.actors = new ActorDirectory({tabName: "actors"})
+							ui.items = new ItemDirectory({tabName: "items"})
+							ui.journal = new JournalDirectory({tabName: "journal"})
+							ui.tables = new RollTableDirectory({tabName: "tables"})
+							ui.playlists = new PlaylistDirectory({tabName: "playlists"})
+							ui.compendium = new CompendiumDirectory({tabName: "compendium"})
+							ui.settings = new Settings({tabName: "settings"})
+					}
+							
+				KeyboardManager.prototype._onEscape = function(event, up, modifiers) {
+					if ( up || modifiers.hasFocus ) return;
+
+					// Case 1 - dismiss an open context menu
+					if ( ui.context && ui.context.menu.length ) ui.context.close();
+
+					// Case 2 - close open UI windows
+					else if ( Object.keys(ui.windows).length ) {
+						Object.values(ui.windows).filter(w => w.id !== ${sheet}.id).forEach(app => app.close());
+					}
+
+					// Flag the keydown workflow as handled
+					this._handled.add(event.keyCode);
+				}
 			  Hooks.on('ready', () => PopoutModule.renderPopout(${sheet}));
 		      window.dispatchEvent(new Event('load'))
 		      </script>`))
@@ -99,10 +119,12 @@ class PopoutModule {
 		let win = window.open(window.location.toString())
 		//console.log(win)
 		// This is for electron which doesn't have a Window but a BrowserWindowProxy
+		// Need to specify DOCTYPE so the browser is in standards mode (fixes TinyMCE and CSS)
+		html = "<!DOCTYPE html>" +  html[0].outerHTML
 		if (win.document === undefined) {
-			win.eval(`document.write(\`${html[0].outerHTML}\`); document.close();`)
+			win.eval(`document.write(\`${html}\`); document.close();`)
 		} else {
-			win.document.write(html[0].outerHTML)
+			win.document.write(html)
 			// After doing a write, we need to do a document.close() so it finishes
 			// loading and emits the load event.
 			win.document.close()
@@ -110,22 +132,19 @@ class PopoutModule {
 	}
 
 	static renderPopout(sheet) {
-		sheet._original_popout_render = sheet._render
 		sheet.options.minimizable = false;
 		sheet.options.resizable = false;
 		sheet.options.id = "popout-" + sheet.id;
 		sheet.options.closeOnSubmit = false;
+		// Without setting the id, re-rendering the sheet unmaximizes it and custom classes for CSS (shadowrun) don't get set.
 		Object.defineProperty(sheet, 'id', { value: sheet.options.id, writable: true, configurable: true });
 		// Replace the render function so if it gets re-rendered (such as switching journal view mode), we can
 		// re-maximize it.
+		sheet._original_popout_render = sheet._render
 		sheet._render = async function (force, options) {
 			await this._original_popout_render(true, options);
-			// In 0.4.1, there's a bug where a JournalSheet could return before it's done rendering.
-			while (!this._rendered) {
-				await new Promise((resolve) => setTimeout(() => resolve(), 0));
-			}
 			// Maximum it
-			sheet.element.css({ width: "100%", height: "100%", top: "0px", left: "0px" })
+			sheet.element.css({ width: "100%", height: "100%", top: "0px", left: "0px", padding: "15px" })
 			// Remove the close and popout buttons
 			sheet.element.find("header .close, header .popout").remove()
 		}
@@ -135,12 +154,5 @@ class PopoutModule {
 
 Hooks.on('ready', () => {
 	Hooks.on('renderJournalSheet', PopoutModule.onRenderJournalSheet)
-	// Hook to render on any actor sheets
-	let sheets = []
-	for (let type in CONFIG["Actor"].sheetClasses) {
-		sheets = sheets.concat(Object.values(CONFIG["Actor"].sheetClasses[type]))
-	}
-	for (let sheet of sheets.map(s => s.cls.name)) {
-		Hooks.on('render' + sheet, PopoutModule.onRenderActorSheet)
-	}
+	Hooks.on('renderActorSheet', PopoutModule.onRenderActorSheet)
 });

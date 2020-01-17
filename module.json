@@ -1,8 +1,8 @@
 {
     "name": "popout",
     "title": "PopOut!",
-    "description": "Pop out Journal entries into their own windows for easier viewing.",
-    "version": "0.3",
+    "description": "Pop out Actor sheets and Journal entries into their own windows for easier viewing.",
+    "version": "0.4",
     "author": "KaKaRoTo",
     "scripts": ["./popout.js"],
     "styles": [],
@@ -10,5 +10,5 @@
     "url": "https://github.com/kakaroto/fvtt-module-popout",
     "manifest": "https://raw.githubusercontent.com/kakaroto/fvtt-module-popout/master/module.json",
     "download": "https://github.com/kakaroto/fvtt-module-popout/archive/master.zip",
-    "minimumCoreVersion": "0.4.0"
+    "minimumCoreVersion": "0.4.4"
 }

@@ -1,6 +1,6 @@
 # PopOut!
 
-This Foundry VTT module lets you pop out journal entries into their own windows.
+This Foundry VTT module lets you pop out actor sheets and journal entries into their own windows.
 
 # Installation
 Install using the URL : `https://raw.githubusercontent.com/kakaroto/fvtt-module-popout/master/module.json`
