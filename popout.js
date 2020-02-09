@@ -111,7 +111,7 @@ class PopoutModule {
 					// Flag the keydown workflow as handled
 					this._handled.add(event.keyCode);
 				}
-			  Hooks.on('ready', () => PopoutModule.renderPopout(${sheet}));
+				Hooks.on('ready', () => setTimeout(() => PopoutModule.renderPopout(${sheet}), 1000));
 		      window.dispatchEvent(new Event('load'))
 		      </script>`))
 		// Open new window and write the new html document into it
@@ -143,8 +143,6 @@ class PopoutModule {
 		sheet._original_popout_render = sheet._render
 		sheet._render = async function (force, options) {
 			await this._original_popout_render(true, options);
-			// Maximum it
-			sheet.element.css({ width: "100%", height: "100%", top: "0px", left: "0px", padding: "15px" })
 			// Remove the close and popout buttons
 			sheet.element.find("header .close, header .popout").remove()
 		}
