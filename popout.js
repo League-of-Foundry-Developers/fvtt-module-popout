@@ -111,9 +111,11 @@ class PopoutModule {
 					// Flag the keydown workflow as handled
 					this._handled.add(event.keyCode);
 				}
-			  Hooks.on('ready', () => PopoutModule.renderPopout(${sheet}));
-		      window.dispatchEvent(new Event('load'))
-		      </script>`))
+				// Add delay before rendering in case some things aren't done initializing, like sheet templates
+				// which get loaded asynchronously.
+				Hooks.on('ready', () => setTimeout(() => PopoutModule.renderPopout(${sheet}), 1000));
+		  	window.dispatchEvent(new Event('load'))
+		  </script>`))
 		// Open new window and write the new html document into it
 		// We need to open it to the same url because some images use relative paths
 		let win = window.open(window.location.toString())
@@ -147,6 +149,7 @@ class PopoutModule {
 			sheet.element.css({ width: "100%", height: "100%", top: "0px", left: "0px", padding: "15px" })
 			// Remove the close and popout buttons
 			sheet.element.find("header .close, header .popout").remove()
+			Hooks.callAll("popout:renderSheet", sheet);
 		}
 		sheet.render(true);
 	}
