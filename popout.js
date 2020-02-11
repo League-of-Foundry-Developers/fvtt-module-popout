@@ -67,7 +67,30 @@ class PopoutModule {
 			head.append(new_script)
 		}
 		// Create a callable canvas with a universal proxy so canvas.notes.placeables.filter() doesn't crash on journal updates.
-		head.append($("<script>handlers = {get: (obj, name) => {if (name === 'length') return 0; return canvas;}, set: () => true}; canvas = new Proxy(() => canvas, handlers);</script>"))
+		head.append($(`<script>
+					handlers = {
+						get: (obj, name) => {
+							if (name === 'length') return 0;
+							if (name === 'scene') return game.scenes.entities.find(s => s.active) || canvas;
+							if (name === 'dimensions') return {
+								width: 1,
+								sceneWidth: 1,
+								height: 1,
+								sceneHeight: 1,
+								size: canvas.scene.data.grid,
+								distance: canvas.scene.data.gridDistance,
+								shiftX: canvas.scene.data.shiftX,
+								shiftY: canvas.scene.data.shiftY,
+								ratio: 1,
+								paddingX: 0,
+								paddingY: 0,
+							};
+							return canvas;
+						},
+						set: () => true
+					};
+					canvas = new Proxy(() => canvas, handlers);
+				</script>`))
 		// Avoid having the UI initialized which renders the chatlog and all sorts
 		// of other things behind the sheet
 		body.append($(`<script>
