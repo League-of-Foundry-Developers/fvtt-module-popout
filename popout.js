@@ -169,6 +169,8 @@ class PopoutModule {
 		// Replace the render function so if it gets re-rendered (such as switching journal view mode), we can
 		// re-maximize it.
 		sheet._original_popout_render = sheet._render
+		// Prevent the sheet from getting minimized
+		sheet.minimize = () => { }
 		sheet._render = async function (force, options) {
 			await this._original_popout_render(true, options);
 			// Maximum it
