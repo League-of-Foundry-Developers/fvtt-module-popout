@@ -18,6 +18,12 @@ class PopoutModule {
 
 	}
 	static onPopoutClicked(event, sheet) {
+
+		// Check if popout in Electron window
+		if (navigator.userAgent.toLowerCase().indexOf(" electron/") !== -1) {
+			return ui.notifications.warn("Popout! cannot work within the standalone FVTT Application. Please open your game from a regular browser.");
+		}
+
 		let div = $(event.target).closest("div")
 		let window_title = div.find(".window-title").text().trim()
 
@@ -146,17 +152,11 @@ class PopoutModule {
 			windowFeatures = 'toolbar=0,location=0,menubar=0,titlebar=0';
 		let win = window.open(window.location.toString(), '_blank', windowFeatures)
 		//console.log(win)
-		// This is for electron which doesn't have a Window but a BrowserWindowProxy
 		// Need to specify DOCTYPE so the browser is in standards mode (fixes TinyMCE and CSS)
-		html = "<!DOCTYPE html>" +  html[0].outerHTML
-		if (win.document === undefined) {
-			win.eval(`document.write(\`${html}\`); document.close();`)
-		} else {
-			win.document.write(html)
-			// After doing a write, we need to do a document.close() so it finishes
-			// loading and emits the load event.
-			win.document.close()
-		}
+		win.document.write("<!DOCTYPE html>" +  html[0].outerHTML)
+		// After doing a write, we need to do a document.close() so it finishes
+		// loading and emits the load event.
+		win.document.close()
 	}
 
 	static renderPopout(sheet) {
