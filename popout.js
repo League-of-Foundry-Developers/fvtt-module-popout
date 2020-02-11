@@ -145,6 +145,9 @@ class PopoutModule {
 			await this._original_popout_render(true, options);
 			// Remove the close and popout buttons
 			sheet.element.find("header .close, header .popout").remove()
+			// Maximum it
+			sheet.element.css({ width: "100%", height: "100%", top: "0px", left: "0px" })	
+			Hooks.callAll("renderPopout", sheet);
 		}
 		sheet.render(true);
 	}
