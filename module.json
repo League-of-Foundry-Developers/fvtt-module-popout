@@ -2,7 +2,7 @@
     "name": "popout",
     "title": "PopOut!",
     "description": "<p>Pop out Actor sheets and Journal entries into their own windows for easier viewing.</p><p>Does not work in the standalone FVTT Application.</p>",
-    "version": "0.4",
+    "version": "0.5",
     "author": "KaKaRoTo",
     "scripts": ["./popout.js"],
     "styles": [],
