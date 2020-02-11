@@ -118,7 +118,10 @@ class PopoutModule {
 		  </script>`))
 		// Open new window and write the new html document into it
 		// We need to open it to the same url because some images use relative paths
-		let win = window.open(window.location.toString())
+		let windowFeatures = undefined;
+		if (game.settings.get("popout", "useWindows"))
+			windowFeatures = 'toolbar=0,location=0,menubar=0,titlebar=0';
+		let win = window.open(window.location.toString(), '_blank', windowFeatures)
 		//console.log(win)
 		// This is for electron which doesn't have a Window but a BrowserWindowProxy
 		// Need to specify DOCTYPE so the browser is in standards mode (fixes TinyMCE and CSS)
@@ -156,6 +159,14 @@ class PopoutModule {
 }
 
 Hooks.on('ready', () => {
+	game.settings.register("popout", "useWindows", {
+		name: "Pop sheets out into windows",
+		hint: "Force the popped out sheet to be a window with minimal decorations. Otherwise uses your browser's default (a new tab most likely)",
+		scope: "client",
+		config: true,
+		default: false,
+		type: Boolean
+	});
 	Hooks.on('renderJournalSheet', PopoutModule.onRenderJournalSheet)
 	Hooks.on('renderActorSheet', PopoutModule.onRenderActorSheet)
 });
