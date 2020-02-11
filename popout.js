@@ -149,7 +149,7 @@ class PopoutModule {
 		// We need to open it to the same url because some images use relative paths
 		let windowFeatures = undefined;
 		if (game.settings.get("popout", "useWindows"))
-			windowFeatures = 'toolbar=0,location=0,menubar=0,titlebar=0';
+			windowFeatures = 'toolbar=0,location=0,menubar=0,titlebar=0,scrollbars=1';
 		let win = window.open(window.location.toString(), '_blank', windowFeatures)
 		//console.log(win)
 		// Need to specify DOCTYPE so the browser is in standards mode (fixes TinyMCE and CSS)
@@ -174,9 +174,22 @@ class PopoutModule {
 		sheet._render = async function (force, options) {
 			await this._original_popout_render(true, options);
 			// Maximum it
-			sheet.element.css({ width: "100%", height: "100%", top: "0px", left: "0px", padding: "15px" })
+			sheet.element.css({ width: "100%", height: "100%", top: "0px", left: "0px", padding: "30px" })
 			// Remove the close and popout buttons
 			sheet.element.find("header .close, header .popout").remove()
+			let minWidth = parseInt(sheet.element.css('min-width'), 10);
+			let minHeight = parseInt(sheet.element.css('min-height'), 10);
+			// Make sure overflow scrollbars appear only when necessary
+			window.onresize = () => {
+				if (minWidth || minHeight) {
+					const bounds = document.body.getBoundingClientRect();
+					if (minWidth) 
+						document.body.style['overflow-x'] = bounds.width < minWidth ? 'overlay' : 'hidden';
+					if (minHeight) 
+						document.body.style['overflow-y'] = bounds.height < minHeight ? 'overlay' : 'hidden';
+				}
+			}
+			window.onresize();
 			Hooks.callAll("popout:renderSheet", sheet);
 		}
 		sheet.render(true);
