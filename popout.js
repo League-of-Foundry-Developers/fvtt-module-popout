@@ -1,42 +1,44 @@
 class PopoutModule {
 	static onRenderJournalSheet(obj, html, data) {
-		let element = html.find(".window-header .window-title")
-		PopoutModule.addPopout(element, `game.journal.get("${obj.entity.id}").sheet`);
+		let element = html.find(".window-header .window-title");
+		let sheetID = obj.entity.id;
+		PopoutModule.addPopout(element, `game.journal.get("${obj.entity.id}").sheet`, sheetID);
 	}
 	static onRenderActorSheet(obj, html, data) {
-		let element = html.find(".window-header .window-title")
-		PopoutModule.addPopout(element, `game.actors.get("${obj.entity.id}").sheet`);
+		let element = html.find(".window-header .window-title");
+		let sheetID = obj.entity.id;
+		PopoutModule.addPopout(element, `game.actors.get("${obj.entity.id}").sheet`, sheetID);
 	}
-	static addPopout(element, sheet) {
+	static addPopout(element, sheet, sheetID) {
 		// Can't find it?
 		if (element.length != 1) {
 			return;
 		}
 		let popout = $('<a class="popout" style><i class="fas fa-external-link-alt"></i>PopOut!</a>')
-		popout.on('click', (event) => PopoutModule.onPopoutClicked(event, sheet))
+		popout.on('click', (event) => PopoutModule.onPopoutClicked(event, sheet, sheetID))
 		element.after(popout)
 
 	}
 	static onPopoutClicked(event, sheet) {
-
 		// Check if popout in Electron window
 		if (navigator.userAgent.toLowerCase().indexOf(" electron/") !== -1) {
 			return ui.notifications.warn("Popout! cannot work within the standalone FVTT Application. Please open your game from a regular browser.");
 		}
-
-		let div = $(event.target).closest("div")
-		let window_title = div.find(".window-title").text().trim()
-
+		
+		let div = $(event.target).closest("div");
+		let window_title = div.find(".window-title").text().trim();
+		let obj = (game.actors.get(sheetID)) ? game.actors.get(sheetID) : game.journal.get(sheetID);
+		
 		// Create a new html document
-		let html = $("<html>")
-		let head = $("<head>")
-		let body = $("<body>")
+		let html = $("<html>");
+		let head = $("<head>");
+		let body = $("<body>");
 
 		// Copy classes from html/head/body tags and add title
-		html.attr("class", $("html").attr("class"))
-		head.attr("class", $("head").attr("class"))
-		head.append($("<title>" + window_title + "</title>"))
-		body.attr("class", $("body").attr("class"))
+		html.attr("class", $("html").attr("class"));
+		head.attr("class", $("head").attr("class"));
+		head.append($("<title>" + window_title + "</title>"));
+		body.attr("class", $("body").attr("class"));
 		/*
 		// Clone the journal sheet so we can modify it safely
 		div = div.clone()
@@ -54,8 +56,8 @@ class PopoutModule {
 			"padding": "15px",
 		})
 		body.append(div)*/
-		html.append(head)
-		html.append(body)
+		html.append(head);
+		html.append(body);
 
 		// Copy the scripts and css so the sheet appears correctly
 		for (let link of $("head link")) {
@@ -143,20 +145,21 @@ class PopoutModule {
 				// Add delay before rendering in case some things aren't done initializing, like sheet templates
 				// which get loaded asynchronously.
 				Hooks.on('ready', () => setTimeout(() => PopoutModule.renderPopout(${sheet}), 1000));
-		  	window.dispatchEvent(new Event('load'))
-		  </script>`))
+		  	window.dispatchEvent(new Event('load'));
+		  </script>`));
 		// Open new window and write the new html document into it
 		// We need to open it to the same url because some images use relative paths
 		let windowFeatures = undefined;
 		if (game.settings.get("popout", "useWindows"))
-			windowFeatures = 'toolbar=0,location=0,menubar=0,titlebar=0,scrollbars=1';
-		let win = window.open(window.location.toString(), '_blank', windowFeatures)
+			windowFeatures = 'toolbar=0, location=0, menubar=0, titlebar=0, scrollbars=1, width=800, height=900';
+		let win = window.open(window.location.toString(), '_blank', windowFeatures);
 		//console.log(win)
 		// Need to specify DOCTYPE so the browser is in standards mode (fixes TinyMCE and CSS)
-		win.document.write("<!DOCTYPE html>" +  html[0].outerHTML)
+		win.document.write("<!DOCTYPE html>" +  html[0].outerHTML);
 		// After doing a write, we need to do a document.close() so it finishes
 		// loading and emits the load event.
-		win.document.close()
+		win.document.close();
+		obj.sheet.close;
 	}
 
 	static renderPopout(sheet) {
