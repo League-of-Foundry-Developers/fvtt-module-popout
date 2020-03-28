@@ -95,7 +95,8 @@ class PopoutModule {
 						},
 						set: () => true
 					};
-					canvas = new Proxy(() => canvas, handlers);
+                    canvas = new Proxy(() => canvas, handlers);
+                    Playlist.prototype.playSound = () => {}
 				</script>`))
 		// Avoid having the UI initialized which renders the chatlog and all sorts
 		// of other things behind the sheet
