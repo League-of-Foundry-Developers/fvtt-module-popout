@@ -174,7 +174,12 @@ class PopoutModule {
 		sheet._render = async function (force, options) {
 			await this._original_popout_render(true, options);
 			// Maximum it
-			sheet.element.css({ width: "100%", height: "100%", top: "0px", left: "0px", padding: "30px", "box-sizing": "content-box"})
+			sheet.element.css({
+                width: "calc(100% - 60px)",
+                height: "calc(100% - 60px)",
+                top: "30px",
+                left: "30px"
+            })
 			// Remove the close and popout buttons
 			sheet.element.find("header .close, header .popout").remove()
 			let minWidth = parseInt(sheet.element.css('min-width'), 10);
