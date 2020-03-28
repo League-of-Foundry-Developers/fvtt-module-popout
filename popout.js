@@ -1,23 +1,23 @@
 class PopoutModule {
-	static onRenderJournalSheet(obj, html, data) {
+	static onRenderJournalSheet(sheet, html, data) {
 		let element = html.find(".window-header .window-title")
-		PopoutModule.addPopout(element, `game.journal.get("${obj.entity.id}").sheet`);
+		PopoutModule.addPopout(element, sheet, `game.journal.get("${sheet.entity.id}").sheet`);
 	}
-	static onRenderActorSheet(obj, html, data) {
+	static onRenderActorSheet(sheet, html, data) {
 		let element = html.find(".window-header .window-title")
-		PopoutModule.addPopout(element, `game.actors.get("${obj.entity.id}").sheet`);
+		PopoutModule.addPopout(element, sheet, `game.actors.get("${sheet.entity.id}").sheet`);
 	}
-	static addPopout(element, sheet) {
+	static addPopout(element, sheet, sheetGetter) {
 		// Can't find it?
 		if (element.length != 1) {
 			return;
 		}
 		let popout = $('<a class="popout" style><i class="fas fa-external-link-alt"></i>PopOut!</a>')
-		popout.on('click', (event) => PopoutModule.onPopoutClicked(event, sheet))
+		popout.on('click', (event) => PopoutModule.onPopoutClicked(event, sheet, sheetGetter))
 		element.after(popout)
 
 	}
-	static onPopoutClicked(event, sheet) {
+	static onPopoutClicked(event, sheet, sheetGetter) {
 
 		// Check if popout in Electron window
 		if (navigator.userAgent.toLowerCase().indexOf(" electron/") !== -1) {
@@ -135,7 +135,7 @@ class PopoutModule {
 
 					// Case 2 - close open UI windows
 					else if ( Object.keys(ui.windows).length ) {
-						Object.values(ui.windows).filter(w => w.id !== ${sheet}.id).forEach(app => app.close());
+						Object.values(ui.windows).filter(w => w.id !== ${sheetGetter}.id).forEach(app => app.close());
 					}
 
 					// Flag the keydown workflow as handled
@@ -143,7 +143,7 @@ class PopoutModule {
 				}
 				// Add delay before rendering in case some things aren't done initializing, like sheet templates
 				// which get loaded asynchronously.
-				Hooks.on('ready', () => setTimeout(() => PopoutModule.renderPopout(${sheet}), 1000));
+				Hooks.on('ready', () => setTimeout(() => PopoutModule.renderPopout(${sheetGetter}), 1000));
 		  	window.dispatchEvent(new Event('load'))
 		  </script>`))
 		// Open new window and write the new html document into it
@@ -157,7 +157,9 @@ class PopoutModule {
 		win.document.write("<!DOCTYPE html>" +  html[0].outerHTML)
 		// After doing a write, we need to do a document.close() so it finishes
 		// loading and emits the load event.
-		win.document.close()
+        win.document.close()
+        if (game.settings.get('popout', 'closeSheet'))
+            sheet.close();
 	}
 
 	static renderPopout(sheet) {
@@ -209,6 +211,14 @@ Hooks.on('ready', () => {
 		scope: "client",
 		config: true,
 		default: false,
+		type: Boolean
+	});
+	game.settings.register("popout", "closeSheet", {
+		name: "Close sheet on Popout",
+		hint: "Closes the sheet in FVTT when it gets popped out",
+		scope: "client",
+		config: true,
+		default: true,
 		type: Boolean
 	});
 	Hooks.on('renderJournalSheet', PopoutModule.onRenderJournalSheet)
