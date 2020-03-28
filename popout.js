@@ -18,7 +18,7 @@ class PopoutModule {
 
 	}
 	static onPopoutClicked(event, sheet, sheetGetter) {
-
+        const padding = 30;
 		// Check if popout in Electron window
 		if (navigator.userAgent.toLowerCase().indexOf(" electron/") !== -1) {
 			return ui.notifications.warn("Popout! cannot work within the standalone FVTT Application. Please open your game from a regular browser.");
@@ -149,8 +149,14 @@ class PopoutModule {
 		// Open new window and write the new html document into it
 		// We need to open it to the same url because some images use relative paths
 		let windowFeatures = undefined;
-		if (game.settings.get("popout", "useWindows"))
-			windowFeatures = 'toolbar=0,location=0,menubar=0,titlebar=0,scrollbars=1';
+		if (game.settings.get("popout", "useWindows")) {
+            const innerWidth = sheet.element.innerWidth() + padding * 2;
+            const innerHeight = sheet.element.innerHeight() + padding * 2;
+            const position = sheet.element.position();
+            const left = window.screenX + position.left - padding;
+            const top = window.screenY + position.top - padding;
+            windowFeatures = `toolbar=0, location=0, menubar=0, titlebar=0, scrollbars=1, innerWidth=${innerWidth}, innerHeight=${innerHeight}, left=${left}, top=${top}`;
+        }
 		let win = window.open(window.location.toString(), '_blank', windowFeatures)
 		//console.log(win)
 		// Need to specify DOCTYPE so the browser is in standards mode (fixes TinyMCE and CSS)
@@ -163,6 +169,7 @@ class PopoutModule {
 	}
 
 	static renderPopout(sheet) {
+        const padding = 30;
 		sheet.options.minimizable = false;
 		sheet.options.resizable = false;
 		sheet.options.id = "popout-" + sheet.id;
@@ -178,10 +185,10 @@ class PopoutModule {
 			await this._original_popout_render(true, options);
 			// Maximum it
 			sheet.element.css({
-                width: "calc(100% - 60px)",
-                height: "calc(100% - 60px)",
-                top: "30px",
-                left: "30px"
+                width: `calc(100% - ${padding * 2}px)`,
+                height: `calc(100% - ${padding * 2}px)`,
+                top: `${padding}px`,
+                left: `${padding}px`
             })
 			// Remove the close and popout buttons
 			sheet.element.find("header .close, header .popout").remove()
