@@ -98,6 +98,8 @@ class PopoutModule {
                     canvas = new Proxy(() => canvas, handlers);
                     Playlist.prototype.playSound = () => {}
 				</script>`))
+		
+		const waitTime = game.settings.get("popout", "waitTime")
 		// Avoid having the UI initialized which renders the chatlog and all sorts
 		// of other things behind the sheet
 		body.append($(`<script>
@@ -143,7 +145,7 @@ class PopoutModule {
 				}
 				// Add delay before rendering in case some things aren't done initializing, like sheet templates
 				// which get loaded asynchronously.
-				Hooks.on('ready', () => setTimeout(() => PopoutModule.renderPopout(${sheetGetter}), 1000));
+				Hooks.on('ready', () => setTimeout(() => PopoutModule.renderPopout(${sheetGetter}), ${waitTime}));
 		  	window.dispatchEvent(new Event('load'))
 		  </script>`))
 		// Open new window and write the new html document into it
@@ -228,6 +230,15 @@ Hooks.on('ready', () => {
 		default: true,
 		type: Boolean
 	});
+	game.settings.register("popout", "waitTime", {
+    name: "Waiting time after popout",
+    hint:
+      "Milliseconds to wait before loading the sheet after opening the popout. This can be used as a workaround if the sheet in the popout is not loading properly.",
+    scope: "client",
+    config: true,
+    default: 2000,
+    type: Number,
+  });
 	Hooks.on('renderJournalSheet', PopoutModule.onRenderJournalSheet)
 	Hooks.on('renderActorSheet', PopoutModule.onRenderActorSheet)
 });
