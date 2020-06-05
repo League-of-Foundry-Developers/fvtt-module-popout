@@ -97,6 +97,7 @@ class PopoutModule {
 					};
                     canvas = new Proxy(() => canvas, handlers);
                     Playlist.prototype.playSound = () => {}
+                    WebRTC.prototype.connect = () => {}
 				</script>`))
 		// Avoid having the UI initialized which renders the chatlog and all sorts
 		// of other things behind the sheet
