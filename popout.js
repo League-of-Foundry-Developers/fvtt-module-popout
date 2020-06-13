@@ -144,7 +144,7 @@ class PopoutModule {
 				}
 				// Add delay before rendering in case some things aren't done initializing, like sheet templates
 				// which get loaded asynchronously.
-				Hooks.on('ready', () => setTimeout(() => PopoutModule.renderPopout(${sheetGetter}), 1000));
+				Hooks.on('ready', () => setTimeout(() => PopoutModule.renderPopout(${sheetGetter}), 2500));
 		  	window.dispatchEvent(new Event('load'))
 		  </script>`))
 		// Open new window and write the new html document into it
