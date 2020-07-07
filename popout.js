@@ -7,17 +7,22 @@ class PopoutModule {
 		let element = html.find(".window-header .window-title")
 		PopoutModule.addPopout(element, sheet, `game.actors.get("${sheet.entity.id}").sheet`);
 	}
-	static addPopout(element, sheet, sheetGetter) {
+	static onRenderSidebarTab(sidebar, html, data) {
+        if (!sidebar.options.popOut) return;
+		let element = html.find(".window-header .window-title")
+		PopoutModule.addPopout(element, sidebar, `ui["${sidebar.tabName}"]`, "renderSidebar", 0);
+	}
+	static addPopout(element, sheet, sheetGetter, renderer="renderSheet", timeout=2500) {
 		// Can't find it?
 		if (element.length != 1) {
 			return;
 		}
 		let popout = $('<a class="popout" style><i class="fas fa-external-link-alt"></i>PopOut!</a>')
-		popout.on('click', (event) => PopoutModule.onPopoutClicked(event, sheet, sheetGetter))
+		popout.on('click', (event) => PopoutModule.onPopoutClicked(event, sheet, sheetGetter, renderer, timeout))
 		element.after(popout)
 
 	}
-	static onPopoutClicked(event, sheet, sheetGetter) {
+	static onPopoutClicked(event, sheet, sheetGetter, renderer, timeout) {
         const padding = 30;
 		// Check if popout in Electron window
 		if (navigator.userAgent.toLowerCase().indexOf(" electron/") !== -1) {
@@ -35,25 +40,8 @@ class PopoutModule {
 		// Copy classes from html/head/body tags and add title
 		html.attr("class", $("html").attr("class"))
 		head.attr("class", $("head").attr("class"))
-		head.append($("<title>" + window_title + "</title>"))
 		body.attr("class", $("body").attr("class"))
-		/*
-		// Clone the journal sheet so we can modify it safely
-		div = div.clone()
-		// Avoid other apps with the same id from destroying this div
-		div.attr("id", "popout-main-div")
-		// Remove the buttons and forms because there are no JS hooks into them.
-		div.find("header a,form button,form .form-group,.window-resizable-handle").remove()
-		// Make sure any newly opened item doesn't get hidden behind it and set the size to the full window - padding.
-		div.css({
-			"z-index": "0",
-			"width": "100%",
-			"height": "100%",
-			"top": "0",
-			"left": "0",
-			"padding": "15px",
-		})
-		body.append(div)*/
+		head.append($("<title>" + window_title + "</title>"))
 		html.append(head)
 		html.append(body)
 
@@ -145,7 +133,7 @@ class PopoutModule {
 				}
 				// Add delay before rendering in case some things aren't done initializing, like sheet templates
 				// which get loaded asynchronously.
-				Hooks.on('ready', () => setTimeout(() => PopoutModule.renderPopout(${sheetGetter}), 2500));
+				Hooks.on('ready', () => setTimeout(() => PopoutModule.${renderer}(${sheetGetter}), ${timeout}));
 		  	window.dispatchEvent(new Event('load'))
 		  </script>`))
 		// Open new window and write the new html document into it
@@ -170,7 +158,7 @@ class PopoutModule {
             sheet.close();
 	}
 
-	static renderPopout(sheet) {
+	static renderSheet(sheet) {
         const padding = 30;
 		sheet.options.minimizable = false;
 		sheet.options.resizable = false;
@@ -211,6 +199,23 @@ class PopoutModule {
 		}
 		sheet.render(true);
 	}
+	static async renderSidebar(sidebar) {
+        const padding = 10;
+        const popout = sidebar.createPopout();
+        ui[sidebar.tabName] = popout;
+		popout.options.width = `100%`;
+		popout.options.height = `100%`;
+        await popout._render(true);
+        // Maximum it
+        popout.element.css({
+            width: `calc(100% - ${padding * 2}px)`,
+            height: `calc(100% - ${padding * 2}px)`,
+            top: `${padding}px`,
+            left: `${padding}px`
+        })
+        // Remove the close and popout buttons
+        popout.element.find("header .close, header .popout").remove()
+    }
 }
 
 Hooks.on('ready', () => {
@@ -230,6 +235,7 @@ Hooks.on('ready', () => {
 		default: true,
 		type: Boolean
 	});
-	Hooks.on('renderJournalSheet', PopoutModule.onRenderJournalSheet)
-	Hooks.on('renderActorSheet', PopoutModule.onRenderActorSheet)
+	Hooks.on('renderJournalSheet', PopoutModule.onRenderJournalSheet);
+	Hooks.on('renderActorSheet', PopoutModule.onRenderActorSheet);
+	Hooks.on('renderSidebarTab', PopoutModule.onRenderSidebarTab)
 });
