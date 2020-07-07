@@ -90,7 +90,8 @@ class PopoutModule {
 								ratio: 1,
 								paddingX: 0,
 								paddingY: 0,
-							};
+                            };
+                            if (name === 'ready') return false;
 							return canvas;
 						},
 						set: () => true
