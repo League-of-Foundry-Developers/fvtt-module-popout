@@ -1,10 +1,6 @@
 
 
 class PopoutModule {
-	constructor() {
-		this.ID = "d25c3971"; // Random ID to avoid collisions.
-	}
-
 	static log(msg, ...args) {
 		if (game && game.settings.get("popout", "verboseLogs")) {
 			const color = "background: #6699ff; color: #000; font-size: larger;";
@@ -12,7 +8,7 @@ class PopoutModule {
 		}
 	}
 
-	static init() {
+	static async init() {
 		game.settings.register("popout", "useWindows", {
 			name: "Pop sheets out into windows",
 			hint: "Force the popped out sheet to be a window with minimal decorations. Otherwise uses your browser's default (a new tab most likely)",
@@ -52,6 +48,15 @@ class PopoutModule {
 		}
 
 		this.log("Attached popout hooks", hookPoints);
+
+		// HACK(aposney: 2020-07-12): we need to init tinymce to ensure it's plugins 
+		// are loaded into the frame. Otherwise our popouts will not be able to access
+		// the lazy loaded javascript mce plugins. 
+		const elem = $("<div style=\"display: none;\"><p id=\"mce_init\"> foo </p></div>")
+		$('body').append(elem)
+		const config = {target: elem[0], plugins: CONFIG.TinyMCE.plugins};
+		const editor = await tinyMCE.init(config);
+		editor[0].remove();
 	}
 
 	static addPopout(app, node, data) {
@@ -70,11 +75,11 @@ class PopoutModule {
 		if (!app.popOut) {
 			return;
 		}
-
-		const id = `popout_${this.ID}_${app.appId}`;
-		if (!document.getElementById(id)) { // Don't create a second link on re-renders;
+		const ID = "d25c3971"; // Random ID to avoid collisions.
+		const domID = `popout_${this.ID}_${app.appId}`;
+		if (!document.getElementById(domID)) { // Don't create a second link on re-renders;
 			this.log("Attached", app);
-			const link = $(`<a id="${id}"><i class="fas fa-external-link-alt"></i>PopOut!</a>`)
+			const link = $(`<a id="${domID}"><i class="fas fa-external-link-alt"></i>PopOut!</a>`)
 			link.on('click', () => this.onPopoutClicked(app));
 			app.element.find('.window-title').after(link);
 		}
@@ -87,6 +92,9 @@ class PopoutModule {
 			ui.notifications.warn("Popout! cannot work within the standalone FVTT Application. Please open your game from a regular browser.");
 			return;
 		}
+
+		// Store original position for later use.
+		const appPosition = {...app.position};
 
         // Hide the original node;
 		const appNode = app.element[0];
@@ -155,6 +163,7 @@ class PopoutModule {
 
 		popout.addEventListener("beforeunload", async () => {
 			this.log("Clossing popout", app.title);
+			app.position = appPosition; // Set the original position.
 			await app.close();
 			await popout.close();
 			// TODO: PopIn.
@@ -187,6 +196,6 @@ class PopoutModule {
 }
 
 
-Hooks.on('ready', () => {
+Hooks.on('ready', async () => {
 	PopoutModule.init();
 });
