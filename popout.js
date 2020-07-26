@@ -179,7 +179,9 @@ class PopoutModule {
 
         // Remove script tags from cloned head.
         for (const child of [...head.children]) {
-            if (child.nodeName === "SCRIPT") {
+            if ((child.nodeName === "SCRIPT") &&
+                child.src &&
+                !child.src.match(/tinymce|jquery/)) {
                 child.remove();
             }
         }
@@ -203,6 +205,7 @@ class PopoutModule {
         const dest = window.origin + "/__popout" // Deliberate 404
         const popout = window.open(dest, "_blank", windowFeatures);
         popout.location.hash = "popout";
+        popout._rootWindow = window;
 
         this.log("Window opened", dest, popout);
 
@@ -261,9 +264,20 @@ class PopoutModule {
             this.log("opening url", event, a);
             event.preventDefault();
             // NOTE(aposney: 2020-07-26):
-            // This *MUST* be window and not popout. If it is popout.open it causes a crash
-            // on Firefox.
-            window.open(a.href, "_blank");
+            // This *MUST* be window and not the popped out window.
+            // If it is popout.open it causes a crash on Firefox...
+            // So we will disable it for the moment.
+            // const win = a.ownerDocument.defaultView;
+            const win = undefined;
+            if (win) {
+                const opened = win.open(a.href, "_blank");
+
+            } else {
+                const opened = window.open(a.href, "_blank");
+            }
+            if (!win) {
+                ui.notifications.warn(`Unable to open PopOut! window. Please check your site settings/permissions. Click the <i class="fas fa-info-circle"></i> to the left of the website URL.`);
+            }
         });
 
         // We wait longer than just the DOMContentLoaded
@@ -286,6 +300,18 @@ class PopoutModule {
             appNode.style.cssText = "display: flex; top: 0; left: 0; width: 100%; height: 100%"; // Fullscreen
             app.setPosition({ width: "100%", height: "100%", top: 0, left: 0 });
             app._minimized = null;
+
+
+            // These event listeners don't get migrated because they are attached to a jQuery
+            // selected body. This could be more of an issue in future as anyone doing a delegated
+            // event handler will also fail. But that is bad practice.
+            // The following regex will find examples of delegated event handlers in foundry.js
+            // `on\(("|')[^'"]+("|'), *("|')`
+            const jBody = $(body);
+            jBody.on("click", "a.entity-link", window.TextEditor._onClickEntityLink);
+            jBody.on("dragstart", "a.entity-link", window.TextEditor._onDragEntityLink);
+            jBody.on("click", "a.inline-roll", window.TextEditor._onClickInlineRoll);
+
             this.log("Final node", node, app);
 
         });
@@ -307,7 +333,10 @@ class PopoutModule {
         const oldMinimize = app.minimize.bind(app);
         app.minimize = (() => {
             this.log("Trying to focus main window."); // Doesn't appear to work due to popout blockers.
-            window.focus();
+            popout._rootWindow.focus();
+            if (popout._rootWindow.getAttention) {
+                popout._rootWindow.getAttention();
+            }
             oldMinimize();
         });
 
