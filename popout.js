@@ -202,6 +202,7 @@ class PopoutModule {
 
         const dest = window.origin + "/__popout" // Deliberate 404
         const popout = window.open(dest, "_blank", windowFeatures);
+        popout.location.hash = "popout";
 
         this.log("Window opened", dest, popout);
 
@@ -223,24 +224,47 @@ class PopoutModule {
 
         // -------------------- Add unload handlers --------------------
 
-        window.addEventListener("beforeunload", async () => {
-            await popout.close();
+        window.addEventListener("unload", async (event) => {
+            this.log("Unload event", event);
+            const appId = app.appId;
+            if (this.poppedOut.has(appId)) {
+                await popout.close();
+            }
+            event.returnValue = true;
         });
 
-        popout.addEventListener("beforeunload", async () => {
-            this.log("Clossing popout", app.title);
-            app.position = appPosition; // Set the original position.
-            app._minimized = appMinimized;
-            this.poppedOut.delete(app.appId);
-            await app.close();
-            await popout.close();
-            // TODO: PopIn.
+        popout.addEventListener("unload", async (event) => {
+            this.log("Unload event", event, popout.location.href);
+            const appId = app.appId;
+            if (this.poppedOut.has(appId)) {
+                this.log("Closing popout", app.title);
+                app.position = appPosition; // Set the original position.
+                app._minimized = appMinimized;
+                await app.close();
+                await popout.close();
+                this.poppedOut.delete(appId);
+            }
+            event.returnValue = true;
+            // TODO(aposney: 2020-07-26): PopIn.
             // Need to save the original location and position and reset that before closing.
             // But probably not worth the effort.
         });
 
-
         // -------------------- Move element to window --------------------
+
+        // We mimic the main games behavior by forcing new windows to open in a new tab.
+        popout.addEventListener("click", (event) => {
+            const a = event.target.closest("a[href]");
+            if (!a || (a.href === "javascript:void(0)")) {
+                return;
+            }
+            this.log("opening url", event, a);
+            event.preventDefault();
+            // NOTE(aposney: 2020-07-26):
+            // This *MUST* be window and not popout. If it is popout.open it causes a crash
+            // on Firefox.
+            window.open(a.href, "_blank");
+        });
 
         // We wait longer than just the DOMContentLoaded
         // because of how the document is constructed manually.
@@ -262,7 +286,8 @@ class PopoutModule {
             appNode.style.cssText = "display: flex; top: 0; left: 0; width: 100%; height: 100%"; // Fullscreen
             app.setPosition({ width: "100%", height: "100%", top: 0, left: 0 });
             app._minimized = null;
-            this.log("Final Node", node, app);
+            this.log("Final node", node, app);
+
         });
 
         // -------------------- Add app to out popout --------------------
