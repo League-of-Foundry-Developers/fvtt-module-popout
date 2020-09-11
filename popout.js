@@ -238,4 +238,5 @@ Hooks.on('ready', () => {
 	Hooks.on('renderJournalSheet', PopoutModule.onRenderJournalSheet);
 	Hooks.on('renderActorSheet', PopoutModule.onRenderActorSheet);
 	Hooks.on('renderSidebarTab', PopoutModule.onRenderSidebarTab)
+	Hooks.on('renderCombatTracker', PopoutModule.onRenderSidebarTab);
 });
