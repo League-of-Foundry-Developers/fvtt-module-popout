@@ -72,6 +72,12 @@ class PopoutModule {
     }
 
     async addPopout(app) {
+        if (this.poppedOut.has(app.appId)) {
+            this.log("Already popped out");
+            this.poppedOut.get(app.appId).window.focus();
+            return;
+        }
+
         let waitRender = Math.floor(this.MAX_TIMEOUT / this.TIMEOUT_INTERVAL);
         while (
             app._state !== Application.RENDER_STATES.RENDERED &&
@@ -81,12 +87,6 @@ class PopoutModule {
         }
         if (app._state !== Application.RENDER_STATES.RENDERED) {
             this.log("Timeout out waiting for app to render");
-            return;
-        }
-
-        if (this.poppedOut.has(app.appId)) {
-            this.log("Already popped out");
-            this.poppedOut.get(app.appId).window.focus();
             return;
         }
 
