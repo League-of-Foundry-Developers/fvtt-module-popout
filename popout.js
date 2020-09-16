@@ -11,8 +11,7 @@ class PopoutModule {
 
     log(msg, ...args) {
         if (game && game.settings.get("popout", "verboseLogs")) {
-            const color =
-                "background: #6699ff; color: #000; font-size: larger;";
+            const color = "background: #6699ff; color: #000; font-size: larger;";
             console.debug(`%c PopoutModule: ${msg}`, color, ...args);
         }
     }
@@ -20,18 +19,16 @@ class PopoutModule {
     async init() {
         game.settings.register("popout", "useWindows", {
             name: "Pop sheets out into windows",
-            hint:
-                "Force the popped out sheet to be a window with minimal decorations. Otherwise uses your browser's default (a new tab most likely)",
+            hint: "Force the popped out sheet to be a window with minimal decorations. Otherwise uses your browser's default (a new tab most likely)",
             scope: "client",
             config: true,
-            default: false,
+            default: true,
             type: Boolean,
         });
 
         game.settings.register("popout", "verboseLogs", {
             name: "Enable more module logging.",
-            hint:
-                "Enables more verbose module logging. This is useful for debugging the module. But otherwise should be left off.",
+            hint: "Enables more verbose module logging. This is useful for debugging the module. But otherwise should be left off.",
             scope: "client",
             config: false,
             default: false,
@@ -41,19 +38,15 @@ class PopoutModule {
         // We replace the games window registry with a proxy object so we can intercept
         // every new application window creation event.
         const handler = {
-            set: async (obj, prop, value) => {
+            set: (obj, prop, value) => {
                 const result = Reflect.set(obj, prop, value);
+                this.log("Intercept ui-window create", value)
                 this.log("Intercept ui-window create", value);
-                try {
-                    if (value && value.options && value.options.popOut) {
-                        await this.addPopout(value);
-                    }
-                } catch (err) {
-                    // We must never fail here.
-                    this.log(err);
+                if (value && value.options && value.options.popOut) {
+                     this.addPopout(value).catch(err => this.log(err));
                 }
                 return result;
-            },
+            }
         };
         ui.windows = new Proxy(ui.windows, handler);
         this.log("Installed window interceptor", ui.windows);
@@ -62,9 +55,7 @@ class PopoutModule {
         // are loaded into the frame. Otherwise our popouts will not be able to access
         // the lazy loaded JavaScript mce plugins.
         // This will affect any module that lazy loads JavaScript. And require special handling.
-        const elem = $(
-            `<div style="display: none;"><p id="mce_init"> foo </p></div>`
-        );
+        const elem = $(`<div style="display: none;"><p id="mce_init"> foo </p></div>`);
         $("body").append(elem);
         const config = { target: elem[0], plugins: CONFIG.TinyMCE.plugins };
         const editor = await tinyMCE.init(config);
@@ -79,10 +70,8 @@ class PopoutModule {
         }
 
         let waitRender = Math.floor(this.MAX_TIMEOUT / this.TIMEOUT_INTERVAL);
-        while (
-            app._state !== Application.RENDER_STATES.RENDERED &&
-            waitRender-- > 0
-        ) {
+        while (app._state !== Application.RENDER_STATES.RENDERED &&
+            waitRender-- > 0) {
             await new Promise((r) => setTimeout(r, this.TIMEOUT_INTERVAL));
         }
         if (app._state !== Application.RENDER_STATES.RENDERED) {
@@ -98,7 +87,7 @@ class PopoutModule {
         if (!document.getElementById(domID)) {
             // Don't create a second link on re-renders;
             const link = $(
-                `<a id="${domID}"><i class="fas fa-external-link-alt"></i>Popout</a>`
+                `<a id="${domID}"><i class="fas fa-external-link-alt"></i>PopOut!</a>`
             );
             link.on("click", () => this.onPopoutClicked(domID, app));
             const title = app.element.find(".window-title").after(link);
@@ -183,16 +172,10 @@ class PopoutModule {
         // being a single document.
         // We do this before opening the window because technically writing
         // to the new window is race condition with the page load.
-        // But since we are directing to a 404, it doesn't matter other than for UX purposes.
+        // But since we are directing to a placeholder file, it doesn't matter other than for UX purposes.
         const html = document.createElement("html");
-        const head = document.importNode(
-            document.getElementsByTagName("head")[0],
-            true
-        );
-        const body = document.importNode(
-            document.getElementsByTagName("body")[0],
-            false
-        );
+        const head = document.importNode(document.getElementsByTagName("head")[0], true);
+        const body = document.importNode(document.getElementsByTagName("body")[0], false);
 
         for (const child of [...head.children]) {
             if (child.nodeName === "SCRIPT" && child.src) {
@@ -235,9 +218,7 @@ class PopoutModule {
     onPopoutClicked(domID, app) {
         // Check if popout in Electron window
         if (navigator.userAgent.toLowerCase().indexOf(" electron/") !== -1) {
-            ui.notifications.warn(
-                "Popout! cannot work within the standalone FVTT Application. Please open your game from a regular browser."
-            );
+            ui.notifications.warn("Popout! cannot work within the standalone FVTT Application. Please open your game from a regular browser.");
             return;
         }
 
@@ -294,6 +275,8 @@ class PopoutModule {
             }
             shallowHeader.appendChild(child);
         }
+        // Change Close button
+        $(shallowHeader).find("a.close").html(`<i class="fas fa-sign-in-alt"></i>PopIn!`)
         // re-parent the new shallow header to the app node.
         state.node.insertBefore(shallowHeader, state.node.children[0]);
 
@@ -346,6 +329,8 @@ class PopoutModule {
                         }
                         poppedOut.header.appendChild(child);
                     }
+                    
+                    $(poppedOut.header).find("a.close").html(`<i class="fas fa-times"></i>Close`)
                     node.insertBefore(poppedOut.header, node.children[0]);
                     header.remove();
                 }
@@ -411,7 +396,6 @@ class PopoutModule {
         // We wait longer than just the DOMContentLoaded
         // because of how the document is constructed manually.
         popout.addEventListener("load", async (event) => {
-            const wrapper = event.target.getElementById(state.node.id);
             const body = event.target.getElementsByTagName("body")[0];
             const node = targetDoc.adoptNode(state.node);
 
@@ -465,10 +449,8 @@ class PopoutModule {
         };
 
         const oldClose = app.close.bind(app);
-        app.close = async () => {
-            // await popout.close();
-            await window.focus();
-            await oldClose();
+        app.close = function () {
+            popout.close();
         };
 
         const oldMinimize = app.minimize.bind(app);
