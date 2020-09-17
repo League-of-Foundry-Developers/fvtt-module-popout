@@ -206,12 +206,10 @@ class PopoutModule {
     }
 
     createWindow(features) {
-        const dest = window.origin + "/modules/popout/popout.html";
-        this.log("dest", dest);
-        const popout = window.open(dest, "_blank", features);
+        const popout = window.open("about:blank", "_blank", features);
         popout.location.hash = "popout";
         popout._rootWindow = window;
-        this.log("Window opened", dest, popout);
+        this.log("Window opened", popout);
         return popout;
     }
 
