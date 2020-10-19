@@ -18,8 +18,8 @@ class PopoutModule {
 
     async init() {
         game.settings.register("popout", "useWindows", {
-            name: "Pop sheets out into windows",
-            hint: "Force the popped out sheet to be a window with minimal decorations. Otherwise uses your browser's default (a new tab most likely)",
+            name: game.i18n.localize("POPOUT.useWindows"),
+            hint: game.i18n.localize("POPOUT.useWindowsHint"),
             scope: "client",
             config: true,
             default: true,
@@ -86,7 +86,7 @@ class PopoutModule {
         if (!document.getElementById(domID)) {
             // Don't create a second link on re-renders;
             const link = $(
-                `<a id="${domID}"><i class="fas fa-external-link-alt"></i>PopOut!</a>`
+                `<a id="${domID}"><i class="fas fa-external-link-alt"></i>${game.i18n.localize("POPOUT.PopOut")}</a>`
             );
             link.on("click", () => this.onPopoutClicked(domID, app));
             const title = app.element.find(".window-title").after(link);
@@ -227,7 +227,7 @@ class PopoutModule {
     onPopoutClicked(domID, app) {
         // Check if popout in Electron window
         if (navigator.userAgent.toLowerCase().indexOf(" electron/") !== -1) {
-            ui.notifications.warn("Popout! cannot work within the standalone FVTT Application. Please open your game from a regular browser.");
+            ui.notifications.warn(game.i18n.localize("POPOUT.electronWarning"));
             return;
         }
 
@@ -255,9 +255,7 @@ class PopoutModule {
             this.log("Failed to open window", popout);
             state.node.style.display = state.display;
             state.node._minimized = false;
-            ui.notifications.warn(
-                `Unable to open PopOut! window. Please check your site settings/permissions. Click the <i class="fas fa-info-circle"></i> to the left of the website URL.`
-            );
+            ui.notifications.warn(game.i18n.localize("POPOUT.failureWarning"));
             return;
         }
 
@@ -282,7 +280,7 @@ class PopoutModule {
         for (const child of [...state.header.children]) {
             if (child.id == domID) {
                 // Change Close button
-                $(child).html(`<i class="fas fa-sign-in-alt"></i>PopIn!`).off('click').on('click', ev => {
+                $(child).html(`<i class="fas fa-sign-in-alt"></i>${game.i18n.localize("POPOUT.PopIn")}`).off('click').on('click', ev => {
                     popout._popout_dont_close = true;
                     popout.close();
                 })
@@ -341,8 +339,7 @@ class PopoutModule {
                             poppedOut.header.appendChild(child);
                         }
                     }
-                    
-                    $(poppedOut.header).find("a.close").html(`<i class="fas fa-times"></i>Close`)
+
                     node.insertBefore(poppedOut.header, node.children[0]);
                     header.remove();
                 }
@@ -408,9 +405,7 @@ class PopoutModule {
 
             const opened = window.open(a.href, "_blank");
             if (!opened) {
-                ui.notifications.warn(
-                    `Unable to open PopOut! window. Please check your site settings/permissions. Click the <i class="fas fa-info-circle"></i> to the left of the website URL.`
-                );
+                ui.notifications.warn(game.i18n.localize("POPOUT.failureWarning"));
             }
         });
 
