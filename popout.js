@@ -41,7 +41,7 @@ class PopoutModule {
             set: (obj, prop, value) => {
                 const result = Reflect.set(obj, prop, value);
                 this.log("Intercept ui-window create", value)
-                if (value && value.options && value.options.popOut) {
+                if (value && value.options && value.options.popOut && !value.options.popOutModuleDisable) {
                      this.addPopout(value).catch(err => this.log(err));
                 }
                 return result;
