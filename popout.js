@@ -41,7 +41,6 @@ class PopoutModule {
             set: (obj, prop, value) => {
                 const result = Reflect.set(obj, prop, value);
                 this.log("Intercept ui-window create", value)
-                this.log("Intercept ui-window create", value);
                 if (value && value.options && value.options.popOut) {
                      this.addPopout(value).catch(err => this.log(err));
                 }
@@ -269,12 +268,14 @@ class PopoutModule {
         shallowHeader.classList.remove("draggable");
         for (const child of [...state.header.children]) {
             if (child.id == domID) {
-                child.style.display = "none";
+                // Change Close button
+                $(child).html(`<i class="fas fa-sign-in-alt"></i>PopIn!`).off('click').on('click', ev => {
+                    popout._popout_dont_close = true;
+                    popout.close();
+                })
             }
             shallowHeader.appendChild(child);
         }
-        // Change Close button
-        $(shallowHeader).find("a.close").html(`<i class="fas fa-sign-in-alt"></i>PopIn!`)
         // re-parent the new shallow header to the app node.
         state.node.insertBefore(shallowHeader, state.node.children[0]);
 
@@ -322,10 +323,10 @@ class PopoutModule {
                 if (poppedOut.header) {
                     const header = node.querySelector(".window-header");
                     for (const child of [...header.children]) {
-                        if (child.id == domID) {
-                            child.style.display = "";
+                        // Remove popin button so we can re-add it properly later
+                        if (child.id !== domID) {
+                            poppedOut.header.appendChild(child);
                         }
-                        poppedOut.header.appendChild(child);
                     }
                     
                     $(poppedOut.header).find("a.close").html(`<i class="fas fa-times"></i>Close`)
@@ -348,11 +349,16 @@ class PopoutModule {
                         child.close();
                     }
                 }
-
-                // Force a re-render;
-                app.render(true);
                 this.poppedOut.delete(appId);
                 await popout.close();
+
+                // Force a re-render or close it
+                if (popout._popout_dont_close) {
+                    app.render(true);
+                    this.addPopout(app)
+                } else {
+                    app.close();
+                }
             }
             event.returnValue = true;
         });
