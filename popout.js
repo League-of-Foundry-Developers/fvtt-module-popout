@@ -454,6 +454,8 @@ class PopoutModule {
 
         const oldClose = app.close.bind(app);
         app.close = function () {
+            // Prevent closing of popped out windows with ESC in main page
+            if (game.keyboard.isDown("Escape")) return;
             popout.close();
         };
 
