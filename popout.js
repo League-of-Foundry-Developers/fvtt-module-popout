@@ -485,6 +485,7 @@ class PopoutModule {
     }
 }
 
-Hooks.on("ready", async () => {
-    await new PopoutModule().init();
+Hooks.on("ready", () => {
+    PopoutModule.singleton = new PopoutModule();
+    PopoutModule.singleton.init();
 });
