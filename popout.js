@@ -100,7 +100,7 @@ class PopoutModule {
         // casting a spell.
         // The intended behavior is that new dialogs, (that have a child relationship to a parent popped out window),
         // get moved to the popped out window.
-        // There are 2 heuristics we use to identify if something is a dialog.
+        // There are 3 heuristics we use to identify if something is a dialog.
 
         // The first is to check if the app has exactly one actor, then we assume that
         // actor is this apps parent.
@@ -128,6 +128,17 @@ class PopoutModule {
                     this.moveDialog(app, parent);
                     return true;
                 }
+            }
+        }
+
+        // The third is to fall back to the probability of whether this dialog belongs to a popout
+        // by checking if there was a recent click in any of the existing popout windows
+        const deadline = Date.now() - 1000; // Last click happened within the last second
+        for (let state of this.poppedOut.values()) {
+            if (state.window._popout_last_click > deadline) {
+                this.log("Intercepting likely dialog of popped out window.");
+                this.moveDialog(app, state.app);
+                return true;
             }
         }
 
@@ -224,6 +235,7 @@ class PopoutModule {
 
         // -------------------- Obtain application --------------------
         const state = {
+            app: app,
             node: app.element[0],
             position: duplicate(app.position),
             minimized: app._minimized,
@@ -369,6 +381,9 @@ class PopoutModule {
 
         // We mimic the main games behavior by forcing new windows to open in a new tab.
         popout.addEventListener("click", (event) => {
+            // Save the timestamp of the last click in this window
+            popout._popout_last_click = Date.now();
+
             const a = event.target.closest("a[href]");
             if (!a || a.href === "javascript:void(0)") {
                 return;
