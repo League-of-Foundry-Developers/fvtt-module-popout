@@ -161,6 +161,7 @@ class PopoutModule {
         parent.node.parentNode.insertBefore(node, parent.node.nextSibling);
         node.style.display = setDisplay;
         parent.children.push(app);
+        Hooks.callAll("PopOut:dialog", app, parent);
     }
 
     createDocument() {
@@ -354,6 +355,7 @@ class PopoutModule {
 
                 // Force a re-render or close it
                 if (popout._popout_dont_close) {
+                    Hooks.callAll("PopOut:popin", app);
                     app.render(true);
                     this.addPopout(app)
                 } else {
@@ -482,6 +484,7 @@ class PopoutModule {
         state.maximize = oldMaximize;
         state.close = oldClose;
         this.poppedOut.set(app.appId, state);
+        Hooks.callAll("PopOut:popout", app, popout, state);
     }
 }
 
