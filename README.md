@@ -5,7 +5,7 @@ This Foundry VTT module lets you pop out actor sheets and journal entries into t
 Note that this module does not work within the Electron window (the standalone FVTT Application) and can only be used from regular browsers.
 
 # Installation
-Install using the URL : `https://raw.githubusercontent.com/kakaroto/fvtt-module-popout/master/module.json`
+Install using the URL : `https://raw.githubusercontent.com/League-of-Foundry-Developers/fvtt-module-popout/master/module.json`
 
 As DM go to the `Manage Modules` options menu in your Game Settings tab then enable the `PopOut!` module.
 
