@@ -7,6 +7,19 @@ class PopoutModule {
         this.MAX_TIMEOUT = 1000; // ms
         // Random id to prevent collision with other modules;
         this.ID = randomID(24);
+        this.compatHandlers = [
+            async (app, node) => {
+                // PDFoundry
+                if (window.ui.PDFoundry !== undefined) {
+                    app._viewer = false;
+                    if (app.pdfData && app.pdfData.url !== undefined) {
+                        app.open(app.pdfData.url, app.pdfData.offset);
+                    }
+                    app.onViewerReady();
+                }
+                return;
+            },
+        ]
     }
 
     log(msg, ...args) {
@@ -424,6 +437,13 @@ class PopoutModule {
         popout.addEventListener("load", async (event) => {
             const body = event.target.getElementsByTagName("body")[0];
             const node = targetDoc.adoptNode(state.node);
+            for (let fn of this.compatHandlers) {
+                try{
+                    await fn.bind(this)(app, node);
+                } catch (err) {
+                    this.log("Compat err", err);
+                }
+            }
 
             body.style.overflow = "auto";
             body.append(state.node);
