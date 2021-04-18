@@ -51,6 +51,9 @@ class PopoutModule {
         // We replace the games window registry with a proxy object so we can intercept
         // every new application window creation event.
         const handler = {
+            ownKeys: (target) => {
+                return Reflect.ownKeys(target).filter((app) => this.poppedOut.has(app.appId));
+            },
             set: (obj, prop, value) => {
                 const result = Reflect.set(obj, prop, value);
                 this.log("Intercept ui-window create", value)
