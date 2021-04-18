@@ -7,7 +7,6 @@ class PopoutModule {
         this.MAX_TIMEOUT = 1000; // ms
         // Random id to prevent collision with other modules;
         this.ID = randomID(24);
-        this.noDialogClasses = [];
     }
 
     log(msg, ...args) {
@@ -137,9 +136,12 @@ class PopoutModule {
         const deadline = Date.now() - 1000; // Last click happened within the last second
         for (let state of this.poppedOut.values()) {
             if (state.window._popout_last_click > deadline) {
-                this.log("Intercepting likely dialog of popped out window.");
-                this.moveDialog(app, state.app);
-                return true;
+                this.log("Intercepting likely dialog of popped out window.", app);
+                // We only nest popout intercepted application if they extend the Dialog class.
+                if (app instanceof Dialog) {
+                    this.moveDialog(app, state.app);
+                    return true;
+                }
             }
         }
 
@@ -147,13 +149,6 @@ class PopoutModule {
     }
 
     moveDialog(app, parentApp) {
-        for (const cls of this.noDialogClasses) {
-            if (app instanceof cls) {
-                this.log(`Ignoring dialog ${app.constructor.name} because it is of kind ${cls.constructor.name}`);
-                return;
-            }
-        }
-
         const parent = this.poppedOut.get(parentApp.appId);
         const dialogNode = app.element[0];
 
