@@ -7,6 +7,7 @@ class PopoutModule {
         this.MAX_TIMEOUT = 1000; // ms
         // Random id to prevent collision with other modules;
         this.ID = randomID(24);
+        this.noDialogClasses = [];
     }
 
     log(msg, ...args) {
@@ -146,6 +147,13 @@ class PopoutModule {
     }
 
     moveDialog(app, parentApp) {
+        for (const cls of this.noDialogClasses) {
+            if (app instanceof cls) {
+                this.log(`Ignoring dialog ${app.constructor.name} because it is of kind ${cls.constructor.name}`);
+                return;
+            }
+        }
+
         const parent = this.poppedOut.get(parentApp.appId);
         const dialogNode = app.element[0];
 
@@ -166,6 +174,11 @@ class PopoutModule {
         node.style.top = "50%";
         node.style.left = "50%";
         node.style.transform = "translate(-50%, -50%)";
+
+        // We manually intercept the setPosition function of the dialog app in 
+        // order to handle re-renders that change the position.
+        // In particular the FilePicker application.
+        app.setPosition = (args) => {this.log("Intercepted dialog setting position", app.constructor.name)};
 
         node.insertBefore(newHeader, node.children[0]);
 
@@ -243,6 +256,8 @@ class PopoutModule {
             css: app.element[0].style.cssText,
             children: [],
         };
+
+        this.log("Application state", state);
 
         // Hide the original node;
         state.node.style.display = "none";
