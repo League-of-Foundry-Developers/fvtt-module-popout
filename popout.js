@@ -39,6 +39,14 @@ class PopoutModule {
             type: Boolean,
         });
 
+        game.settings.register("popout", "showButton", {
+            name: game.i18n.localize("POPOUT.showButton"),
+            scope: "client",
+            config: true,
+            default: true,
+            type: Boolean,
+        });
+
         game.settings.register("popout", "verboseLogs", {
             name: "Enable more module logging.",
             hint: "Enables more verbose module logging. This is useful for debugging the module. But otherwise should be left off.",
@@ -105,7 +113,9 @@ class PopoutModule {
                 `<a id="${domID}"><i class="fas fa-external-link-alt"></i>${game.i18n.localize("POPOUT.PopOut")}</a>`
             );
             link.on("click", () => this.onPopoutClicked(domID, app));
-            const title = app.element.find(".window-title").after(link);
+            if (game && game.settings.get("popout", "showButton")) {
+                const title = app.element.find(".window-title").after(link);
+            }
             this.log("Attached", app);
         }
     }

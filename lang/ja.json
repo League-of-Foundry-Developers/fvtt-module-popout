@@ -1,6 +1,7 @@
 {
     "POPOUT.PopOut": "PopOut!",
     "POPOUT.PopIn": "PopIn!",
+    "POPOUT.showButton":"新しいウィンドウにボタンを追加します。",
     "POPOUT.useWindows": "ポップシートを新しいウィンドウで開く",
     "POPOUT.useWindowsHint": "ポップアウトされたシートを、最小限の要素によるウィンドウで強制的に開きます。それ以外の場合はブラウザのデフォルト（たいていは新しいタブ）で開きます。",
     "POPOUT.electronWarning": "Popout! は、スタンドアロンのFVTTアプリケーションでは動作しません。通常のブラウザからゲームを開いてください。",
