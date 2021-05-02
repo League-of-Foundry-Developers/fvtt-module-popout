@@ -7,7 +7,8 @@ class PopoutModule {
     this.MAX_TIMEOUT = 1000; // ms
     // Random id to prevent collision with other modules;
     this.ID = randomID(24);
-    this.compatHandlers = [
+
+    this.compatOpenHandlers = [
       async (app, node) => {
         // PDFoundry
         if (window.ui.PDFoundry !== undefined) {
@@ -16,6 +17,18 @@ class PopoutModule {
             app.open(app.pdfData.url, app.pdfData.offset);
           }
           app.onViewerReady();
+        }
+        return;
+      },
+    ];
+
+    this.compatCloseHandlers = [
+      async (app, node) => {
+        // PDFoundry
+        if (app.pdfData !== undefined) {
+          if (app.actorSheet && app.actorSheet.close) {
+            await app.actorSheet.close();
+          }
         }
         return;
       },
@@ -102,14 +115,12 @@ class PopoutModule {
     // every new application window creation event.
     const handler = {
       ownKeys: (target) => {
-        return Reflect.ownKeys(target).filter((app) =>
-        {
-            const appId = parseInt(app);
-            if (!isNaN(appId)) {
-                return !this.poppedOut.has(appId);
-            }
-        }
-        );
+        return Reflect.ownKeys(target).filter((app) => {
+          const appId = parseInt(app);
+          if (!isNaN(appId)) {
+            return !this.poppedOut.has(appId);
+          }
+        });
       },
       set: (obj, prop, value) => {
         const result = Reflect.set(obj, prop, value);
@@ -509,16 +520,23 @@ class PopoutModule {
           }
         }
         this.poppedOut.delete(appId);
-        await popout.close();
 
         // Force a re-render or close it
         if (popout._popout_dont_close) {
           Hooks.callAll("PopOut:popin", app);
-          app.render(true);
+          await app.render(true);
           this.addPopout(app);
         } else {
-          app.close();
+          for (let fn of this.compatCloseHandlers) {
+            try {
+              await fn.bind(this)(app, node);
+            } catch (err) {
+              this.log("Compat err", err);
+            }
+          }
+          await app.close();
         }
+        await popout.close();
       }
       event.returnValue = true;
     });
@@ -563,7 +581,7 @@ class PopoutModule {
     popout.addEventListener("load", async (event) => {
       const body = event.target.getElementsByTagName("body")[0];
       const node = targetDoc.adoptNode(state.node);
-      for (let fn of this.compatHandlers) {
+      for (let fn of this.compatOpenHandlers) {
         try {
           await fn.bind(this)(app, node);
         } catch (err) {
