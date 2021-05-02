@@ -219,6 +219,8 @@ class PopoutModule {
         // to the new window is race condition with the page load.
         // But since we are directing to a placeholder file, it doesn't matter other than for UX purposes.
         const html = document.createElement("html");
+        // We copy any manually set styles on the root element to ensure that css variables are preserved.
+        html.style.cssText = document.documentElement.style.cssText;
         const head = document.importNode(document.getElementsByTagName("head")[0], true);
         const body = document.importNode(document.getElementsByTagName("body")[0], false);
 
