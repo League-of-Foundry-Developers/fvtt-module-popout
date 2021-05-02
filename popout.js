@@ -103,7 +103,12 @@ class PopoutModule {
     const handler = {
       ownKeys: (target) => {
         return Reflect.ownKeys(target).filter((app) =>
-          this.poppedOut.has(app.appId)
+        {
+            const appId = parseInt(app);
+            if (!isNaN(appId)) {
+                return !this.poppedOut.has(appId);
+            }
+        }
         );
       },
       set: (obj, prop, value) => {
