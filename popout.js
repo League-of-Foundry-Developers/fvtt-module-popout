@@ -29,7 +29,44 @@ class PopoutModule {
         }
     }
 
+    recursiveBoundingBox(elem) {
+        const maxRectReducer = (acc, elem) => {
+            if (elem.width > 0 && elem.height > 0) {
+                if (elem.x < acc.x)  {
+                    acc.x = elem.x;
+                }
+                if (elem.y < acc.y)  {
+                    acc.y = elem.y;
+                }
+                if (elem.x + elem.width > acc.x2)  {
+                    acc.x2 = Math.ceil(elem.x + elem.width);
+                }
+                if (elem.y + elem.height > acc.y2)  {
+                    acc.y2 = Math.ceil(elem.y + elem.height);
+                }
+            }
+            return acc;
+        }
+        const initialValue = {x: Infinity, y: Infinity, x2: -Infinity, y2: -Infinity};
+        const maxBoundingbox = Array.from(elem.getElementsByTagName('*'))
+            .map(item => item.getBoundingClientRect())
+            .reduce(maxRectReducer, initialValue);
+        return {
+            x: initialValue.x,
+            y: initialValue.y,
+            width: initialValue.x2 - initialValue.x,
+            height: initialValue.y2 - initialValue.y
+        };
+    }
+
     async init() {
+        game.settings.register("popout", "showButton", {
+            name: game.i18n.localize("POPOUT.showButton"),
+            scope: "client",
+            config: true,
+            default: true,
+            type: Boolean,
+        });
         game.settings.register("popout", "useWindows", {
             name: game.i18n.localize("POPOUT.useWindows"),
             hint: game.i18n.localize("POPOUT.useWindowsHint"),
@@ -38,15 +75,14 @@ class PopoutModule {
             default: true,
             type: Boolean,
         });
-
-        game.settings.register("popout", "showButton", {
-            name: game.i18n.localize("POPOUT.showButton"),
+        game.settings.register("popout", "trueBoundingBox", {
+            name: game.i18n.localize("POPOUT.boundingBox"),
+            hint: game.i18n.localize("POPOUT.boundingBoxHint"),
             scope: "client",
             config: true,
-            default: true,
+            default: false,
             type: Boolean,
         });
-
         game.settings.register("popout", "verboseLogs", {
             name: "Enable more module logging.",
             hint: "Enables more verbose module logging. This is useful for debugging the module. But otherwise should be left off.",
@@ -240,16 +276,52 @@ class PopoutModule {
 
     windowFeatures(app) {
         let windowFeatures = undefined;
+        let offsets = {
+            top: "0",
+            left: "0",
+            width: "100%",
+            height: "100%",
+        };
+
+
         if (game.settings.get("popout", "useWindows")) {
-            const padding = 30;
-            const innerWidth = app.element.innerWidth() + padding * 2;
-            const innerHeight = app.element.innerHeight() + padding * 2;
             const position = app.element.position(); // JQuery position function.
-            const left = window.screenX + position.left - padding;
-            const top = window.screenY + position.top - padding;
-            windowFeatures = `toolbar=0, location=0, menubar=0, titlebar=0, scrollbars=1, innerWidth=${innerWidth}, innerHeight=${innerHeight}, left=${left}, top=${top}`;
+            let width = app.element.innerWidth()
+            let height = app.element.innerHeight()
+            let left = position.left;
+            let top = position.top;
+
+            if (game && game.settings.get("popout", "trueBoundingBox")) {
+                const bounding = this.recursiveBoundingBox(app.element[0]);
+                if (bounding.x < left) {
+                    offsets.left = `${left - bounding.x}`;
+                    left = bounding.x;
+                }
+                if (bounding.y < top) {
+                    offsets.top = `${top - bounding.y}`;
+                    top = bounding.y;
+                }
+                if (bounding.width > width) {
+                    offsets.width = `calc(100% - ${bounding.width - width}px)`;
+                    width = bounding.width;
+                }
+                if (bounding.height > height) {
+                    offsets.height = `calc(100% - ${bounding.height - height}px)`;
+                    height = bounding.height;
+                }
+            }
+
+            const padding = 30;
+            const innerWidth = width + padding * 2;
+            const innerHeight = height + padding * 2;
+            const wleft = window.screenX + left - padding;
+            const wtop = window.screenY + top - padding;
+            windowFeatures = `toolbar=0, location=0, menubar=0, titlebar=0, scrollbars=1, innerWidth=${innerWidth}, innerHeight=${innerHeight}, left=${wleft}, top=${wtop}`;
         }
-        return windowFeatures;
+        return {
+            windowFeatures: windowFeatures,
+            offsets: offsets
+        };
     }
 
     createWindow(features) {
@@ -267,7 +339,8 @@ class PopoutModule {
             return;
         }
 
-        const windowFeatures = this.windowFeatures(app);
+        const {windowFeatures, offsets} = this.windowFeatures(app);
+        this.log("Features", windowFeatures, offsets);
 
         // -------------------- Obtain application --------------------
         const state = {
@@ -465,10 +538,10 @@ class PopoutModule {
 
             state.node.style.cssText = `
                 display: flex;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
+                top: ${offsets.top};
+                left: ${offsets.left};
+                width: ${offsets.width};
+                height: ${offsets.height};
                 margin: 0 !important;
                 border-radius: 0 !important;
                 cursor: auto !important;
