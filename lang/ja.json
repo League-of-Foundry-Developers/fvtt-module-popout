@@ -1,0 +1,11 @@
+{
+    "POPOUT.PopOut": "PopOut!",
+    "POPOUT.PopIn": "PopIn!",
+    "POPOUT.showButton":"新しいウィンドウにボタンを追加します。",
+    "POPOUT.useWindows": "ポップシートを新しいウィンドウで開く",
+    "POPOUT.useWindowsHint": "ポップアウトされたシートを、最小限の要素によるウィンドウで強制的に開きます。それ以外の場合はブラウザのデフォルト（たいていは新しいタブ）で開きます。",
+    "POPOUT.boundingBox": "バウンディングボックス互換モード",
+    "POPOUT.boundingBoxHint": "ウィンドウサイズを計算するためのより複雑なアルゴリズムを有効にします。 これは、キャラクターシートのスタイルが複雑で、通常のバウンディングボックスからはみ出す可能性がある場合に必要です。 このオプションを有効にすると、パフォーマンスに悪影響を与える可能性があります。",
+    "POPOUT.electronWarning": "Popout! は、スタンドアロンのFVTTアプリケーションでは動作しません。通常のブラウザからゲームを開いてください。",
+    "POPOUT.failureWarning": "PopOut! のウィンドウが開けませんでした。サイトの設定/権限を確認してください。ウェブサイトのURLの左にある<i class='fas fa-info-circle'></i>をクリックしてください。"
+}

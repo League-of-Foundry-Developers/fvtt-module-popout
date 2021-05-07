@@ -1,0 +1,11 @@
+{
+    "POPOUT.PopOut": "彈出！",
+    "POPOUT.PopIn": "彈入！",
+    "POPOUT.showButton": "新增按鈕到新視窗中。",
+    "POPOUT.useWindows": "將工作表彈出到視窗中",
+    "POPOUT.useWindowsHint": "彈出的頁面將強制為最簡潔的視窗。否則，使用瀏覽器的默認值（最有可能是新分頁）",
+    "POPOUT.boundingBox": "边界框兼容模式 ",
+    "POPOUT.boundingBoxHint": "启用更复杂的算法来计算窗口大小。 当字符表的样式复杂且可能会超出其常规边框时，这是必需的。 启用此选项可能会对性能产生负面影响。",
+    "POPOUT.electronWarning": "彈出！無法在FVTT的應用程序中運行。請在普通的瀏覽器中使用此功能。",
+    "POPOUT.failureWarning": "無法打開 彈出！視窗。請檢查您的網站設置/權限。點擊網站URL左側的<i class='fas fa-info-circle'></i>。"
+}
