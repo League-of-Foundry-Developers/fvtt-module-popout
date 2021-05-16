@@ -368,6 +368,9 @@ class PopoutModule {
 
   createWindow(features) {
     const popout = window.open("about:blank", "_blank", features);
+    if (!popout) {
+      return null;
+    }
     popout.location.hash = "popout";
     popout._rootWindow = window;
     this.log("Window opened", popout);
@@ -579,6 +582,13 @@ class PopoutModule {
     // We wait longer than just the DOMContentLoaded
     // because of how the document is constructed manually.
     popout.addEventListener("load", async (event) => {
+      if (popout.screenX < 0 || popout.screenY < 0) {
+        // Fallback in case for some reason the popout out window is not
+        // on the visible screen. May not work or be blocked by popout blockers,
+        // but it is the best we can do.
+        popout.moveTo(50, 50);
+      }
+
       const body = event.target.getElementsByTagName("body")[0];
       const node = targetDoc.adoptNode(state.node);
       for (let fn of this.compatOpenHandlers) {
