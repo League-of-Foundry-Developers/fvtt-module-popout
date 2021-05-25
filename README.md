@@ -9,6 +9,23 @@ Install using the URL : `https://raw.githubusercontent.com/League-of-Foundry-Dev
 
 As DM go to the `Manage Modules` options menu in your Game Settings tab then enable the `PopOut!` module.
 
+# Module Developers
+Popout! exposes a single API function and a series of hooks so other modules can leverage it's functionality.
+
+To Popout an application call the function with the application object.
+
+```js
+// Where app is the top level Application foundry object.
+PopoutModule.popoutApp(app);
+```
+
+Hooks.callAll("PopOut:popout", app, popout, state);
+Hooks.callAll("PopOut:popin", app);
+Hooks.callAll("PopOut:dialog", app, parent);
+Hooks.callAll("PopOut:close", app, node);
+Hooks.callAll("Popout:loaded", app, node);
+
+
 # License
 This Foundry VTT module, written by @KaKaRoTo.
 It is currently maintained by @Posnet.

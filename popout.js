@@ -7,32 +7,6 @@ class PopoutModule {
     this.MAX_TIMEOUT = 1000; // ms
     // Random id to prevent collision with other modules;
     this.ID = randomID(24);
-
-    this.compatOpenHandlers = [
-      async (app, node) => {
-        // PDFoundry
-        if (window.ui.PDFoundry !== undefined) {
-          app._viewer = false;
-          if (app.pdfData && app.pdfData.url !== undefined) {
-            app.open(app.pdfData.url, app.pdfData.offset);
-          }
-          app.onViewerReady();
-        }
-        return;
-      },
-    ];
-
-    this.compatCloseHandlers = [
-      async (app, node) => {
-        // PDFoundry
-        if (app.pdfData !== undefined) {
-          if (app.actorSheet && app.actorSheet.close) {
-            await app.actorSheet.close();
-          }
-        }
-        return;
-      },
-    ];
   }
 
   log(msg, ...args) {
@@ -175,7 +149,7 @@ class PopoutModule {
       return;
     }
 
-    const domID = `popout_${this.ID}_${app.appId}`;
+    let domID = this.appToID(app);
     if (!document.getElementById(domID)) {
       // Don't create a second link on re-renders;
       const link = $(
@@ -183,7 +157,7 @@ class PopoutModule {
           "POPOUT.PopOut"
         )}</a>`
       );
-      link.on("click", () => this.onPopoutClicked(domID, app));
+      link.on("click", () => this.onPopoutClicked(app));
       if (game && game.settings.get("popout", "showButton")) {
         const title = app.element.find(".window-title").after(link);
       }
@@ -191,6 +165,10 @@ class PopoutModule {
     }
   }
 
+  appToID(app) {
+    const domID = `popout_${this.ID}_${app.appId}`;
+    return domID;
+  }
   handleChildDialog(app) {
     // This handler attempts to make behavior less confusing for modal/dialog like interactions
     // with a popped out window. A concrete example being a `pick spell level dialog` in response to
@@ -377,11 +355,31 @@ class PopoutModule {
     return popout;
   }
 
-  onPopoutClicked(domID, app) {
+  onPopoutClicked(app) {
     // Check if popout in Electron window
     if (navigator.userAgent.toLowerCase().indexOf(" electron/") !== -1) {
       ui.notifications.warn(game.i18n.localize("POPOUT.electronWarning"));
       return;
+    }
+
+    if (window.ui.windows[app.appId] === undefined) {
+      this.log("Attempt to open not a user interface window.");
+      return;
+    }
+
+    if (this.poppedOut.has(app.appId)) {
+      // This check is to ensure PopOut is idempotent to popout calls.
+      let currentState = this.poppedOut.get(app.appId);
+      if (currentState && currentState.window && !currentState.window.closed) {
+        currentState.window.focus();
+        return;
+      } else if (
+        currentState &&
+        currentState.window &&
+        currentState.window.closed
+      ) {
+        this.poppedOut.delete(app.appId);
+      }
     }
 
     const { windowFeatures, offsets } = this.windowFeatures(app);
@@ -433,6 +431,7 @@ class PopoutModule {
     // so that their event handlers are preserved.
     const shallowHeader = state.header.cloneNode(false);
     shallowHeader.classList.remove("draggable");
+    let domID = this.appToID(app);
     for (const child of [...state.header.children]) {
       if (child.id == domID) {
         // Change Close button
@@ -530,13 +529,7 @@ class PopoutModule {
           await app.render(true);
           this.addPopout(app);
         } else {
-          for (let fn of this.compatCloseHandlers) {
-            try {
-              await fn.bind(this)(app, node);
-            } catch (err) {
-              this.log("Compat err", err);
-            }
-          }
+          Hooks.callAll("PopOut:close", app, node);
           await app.close();
         }
         await popout.close();
@@ -591,14 +584,6 @@ class PopoutModule {
 
       const body = event.target.getElementsByTagName("body")[0];
       const node = targetDoc.adoptNode(state.node);
-      for (let fn of this.compatOpenHandlers) {
-        try {
-          await fn.bind(this)(app, node);
-        } catch (err) {
-          this.log("Compat err", err);
-        }
-      }
-
       body.style.overflow = "auto";
       body.append(state.node);
 
@@ -629,6 +614,7 @@ class PopoutModule {
       );
       jBody.on("click", "a.inline-roll", window.TextEditor._onClickInlineRoll);
 
+      Hooks.callAll("Popout:loaded", app, node);
       this.log("Final node", node, app);
     });
 
@@ -672,9 +658,37 @@ class PopoutModule {
     this.poppedOut.set(app.appId, state);
     Hooks.callAll("PopOut:popout", app, popout, state);
   }
+
+  // Public API
+  popoutApp(app) {
+    if (PopoutModule.singleton) {
+      PopoutModule.singleton.onPopoutClicked(app);
+    }
+  }
 }
 
 Hooks.on("ready", () => {
   PopoutModule.singleton = new PopoutModule();
   PopoutModule.singleton.init();
+
+  Hooks.on("PopOut:load", async (app, node) => {
+    // PDFoundry
+    if (window.ui.PDFoundry !== undefined) {
+      app._viewer = false;
+      if (app.pdfData && app.pdfData.url !== undefined) {
+        app.open(app.pdfData.url, app.pdfData.offset);
+      }
+      app.onViewerReady();
+    }
+    return;
+  });
+  Hooks.on("PopOut:close", async (app, node) => {
+    // PDFoundry
+    if (app.pdfData !== undefined) {
+      if (app.actorSheet && app.actorSheet.close) {
+        await app.actorSheet.close();
+      }
+    }
+    return;
+  });
 });
