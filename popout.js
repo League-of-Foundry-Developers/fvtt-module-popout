@@ -656,7 +656,7 @@ class PopoutModule {
     state.maximize = oldMaximize;
     state.close = oldClose;
     this.poppedOut.set(app.appId, state);
-    Hooks.callAll("PopOut:popout", app, popout, state);
+    Hooks.callAll("PopOut:popout", app, popout);
   }
 
   // Public API
