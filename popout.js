@@ -659,7 +659,7 @@ class PopoutModule {
   }
 
   // Public API
-  popoutApp(app) {
+  static popoutApp(app) {
     if (PopoutModule.singleton) {
       PopoutModule.singleton.onPopoutClicked(app);
     }
