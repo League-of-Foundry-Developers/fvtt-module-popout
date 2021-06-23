@@ -605,7 +605,13 @@ class PopoutModule {
       // The following regex will find examples of delegated event handlers in foundry.js
       // `on\(("|')[^'"]+("|'), *("|')`
       const jBody = $(body);
-      jBody.on("click", "a.entity-link", window.TextEditor._onClickEntityLink);
+      jBody.on(
+        "click",
+        "a.entity-link",
+        window.TextEditor._onClickEntityLink !== undefined
+          ? window.TextEditor._onClickEntityLink
+          : window.TextEditor._onClickContentLink
+      );
       jBody.on(
         "dragstart",
         "a.entity-link",
