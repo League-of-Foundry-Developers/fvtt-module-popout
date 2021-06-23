@@ -618,8 +618,8 @@ class PopoutModule {
         window.TextEditor._onDragEntityLink
       );
       jBody.on("click", "a.inline-roll", window.TextEditor._onClickInlineRoll);
-      Hooks.callAll("Popout:loaded", app, node);
       this.log("Final node", node, app);
+      Hooks.callAll("PopOut:loaded", app, node);
     });
 
     // -------------------- Install intercept methods ----------------
