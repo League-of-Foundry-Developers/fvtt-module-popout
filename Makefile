@@ -21,6 +21,6 @@ clean:
 	rm dist/popout.dist.js
 
 build: popout.js
-	yarn run swc popout.js > dist/popout.dist.js
+	yarn run swc popout.js -o dist/popout.dist.js
 
 all: lint format test build
