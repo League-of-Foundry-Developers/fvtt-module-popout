@@ -618,7 +618,6 @@ class PopoutModule {
         window.TextEditor._onDragEntityLink
       );
       jBody.on("click", "a.inline-roll", window.TextEditor._onClickInlineRoll);
-
       Hooks.callAll("Popout:loaded", app, node);
       this.log("Final node", node, app);
     });
@@ -676,7 +675,7 @@ Hooks.on("ready", () => {
   PopoutModule.singleton = new PopoutModule();
   PopoutModule.singleton.init();
 
-  Hooks.on("PopOut:load", async (app, node) => {
+  Hooks.on("PopOut:loaded", async (app, node) => {
     // PDFoundry
     if (window.ui.PDFoundry !== undefined) {
       app._viewer = false;
