@@ -1,4 +1,4 @@
-# PopOut!
+# [PopOut!](https://foundryvtt.com/packages/popout)
 
 This Foundry VTT module lets you pop out actor sheets and journal entries into their own windows.
 
@@ -12,19 +12,20 @@ As DM go to the `Manage Modules` options menu in your Game Settings tab then ena
 # Module Developers
 Popout! exposes a single API function and a series of hooks so other modules can leverage it's functionality.
 
-This API is new as of version 2.0, and I will strive to maintain API compatibility from this point on.
+This API is new as of version 2.0, with the goal is to maintain API compatibility from this point on.
 
 *Note*: There was a minor compatibility break which is why 2.0 was released, the PopOut hook now only takes 2 arguments instead of 3.
 
-To PopOut an application call the function with the application object.
+To pop out an application, call the function with the application object.
 
 ```js
-// Where app is the top level Application foundry object.
+// Where app is the foundry Application object. For example an actor sheet.
+// If the Application exists in the window.ui.windows map, it should be able to be popped out.
 PopoutModule.popoutApp(app);
 ```
 
 PopOut also exposes hooks to developers to alter its behavior to add compatibility to their modules.
-For an example of what that might look like, see the PDFoundry compatibility hooks in [./popout.js#675](./popout.js#675)
+For an example of what that might look like, see the PDFoundry compatibility hooks in [./popout.js](./popout.js#697)
 
 ```javascript
 // app: is the foundry application being popped out.
@@ -54,5 +55,4 @@ It is currently maintained by @Posnet.
 
 This work is licensed under Foundry Virtual Tabletop [EULA - LIMITED LICENSE AGREEMENT FOR MODULE DEVELOPMENT](https://foundryvtt.com/article/license/)
 
-It the contents of this module are licensed under a [Creative Commons Attribution 4.0 International License](./LICENSE.txt) where they do not conflict with the above Foundry License.
-
+The contents of this module are licensed under a [Creative Commons Attribution 4.0 International License](./LICENSE.txt) where they do not conflict with the above Foundry License.
