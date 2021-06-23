@@ -51,6 +51,8 @@ Hooks.callAll("PopOut:close", app, node);
 # License
 This Foundry VTT module, written by @KaKaRoTo.
 It is currently maintained by @Posnet.
-It is licensed under a [Creative Commons Attribution 4.0 International License](http://creativecommons.org/licenses/by/4.0/).
 
-This work is licensed under Foundry Virtual Tabletop [EULA - Limited License Agreement for module development v 0.1.6](http://foundryvtt.com/pages/license.html).
+This work is licensed under Foundry Virtual Tabletop [EULA - LIMITED LICENSE AGREEMENT FOR MODULE DEVELOPMENT](https://foundryvtt.com/article/license/)
+
+It the contents of this module are licensed under a [Creative Commons Attribution 4.0 International License](./LICENSE.txt) where they do not conflict with the above Foundry License.
+
