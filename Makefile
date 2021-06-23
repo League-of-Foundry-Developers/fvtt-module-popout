@@ -12,7 +12,7 @@ format:
 	yarn run prettier -w popout.js
 
 .PHONY: lint
-eslint:
+lint:
 	yarn run eslint popout.js
 
 .PHONY: 
