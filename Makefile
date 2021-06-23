@@ -1,3 +1,5 @@
+all: lint format test build
+
 .PHONY: init
 init:
 	rm yarn.lock
@@ -22,5 +24,3 @@ clean:
 
 build: popout.js
 	yarn run swc popout.js -o dist/popout.dist.js
-
-all: lint format test build
