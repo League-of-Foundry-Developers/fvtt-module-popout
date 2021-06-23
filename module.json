@@ -1,7 +1,7 @@
 {
     "name": "popout",
     "title": "PopOut!",
-    "description": "<p>Pop out Actor sheets and Journal entries into their own windows for easier viewing.</p><p>Does not work in the standalone FVTT Application.</p>",
+    "description": "<p>This module adds a PopOut! button to most actor sheets, journal entries, and applications.</p><p>The PopOut! button allows you to open a sheet/application/document into its own window, for easier viewing or for use with multiple monitors.</p><p>This module <strong>does not work</strong> in the standalone FVTT Application.</p><p>This module is tested on Chrome and Firefox and under Linux and Windows 10.</p><p>This module is only tested against the base Foundry application using the DnD5e system. While most other systems and modules <em>should</em> work; Just because there is a PopOut! button on a window, does not guarantee that it <em>will</em> work. Due to the necessarily brittle nature of how this module is implemented, other modules may lack functionality or break completely when popped out.</p><p>If you do see a incorrect behavior, feel free to report it to the bugs url.</p>",
     "version": "2.0",
     "authors": ["KaKaRoTo", "Alec Posney"],
     "scripts": ["./popout.js"],
@@ -29,9 +29,11 @@
             "path": "lang/ja.json"
         }
     ],
+    "readme": "https://github.com/League-of-Foundry-Developers/fvtt-module-popout#readme",
     "url": "https://github.com/League-of-Foundry-Developers/fvtt-module-popout",
     "manifest": "https://raw.githubusercontent.com/League-of-Foundry-Developers/fvtt-module-popout/master/module.json",
     "download": "https://github.com/League-of-Foundry-Developers/fvtt-module-popout/archive/v2.0.zip",
+    "bugs": "https://github.com/League-of-Foundry-Developers/fvtt-module-popout/issues",
     "minimumCoreVersion": "0.6.0",
     "compatibleCoreVersion": "0.8.7"
 }
