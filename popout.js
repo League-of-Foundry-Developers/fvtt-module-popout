@@ -40,7 +40,7 @@ class PopoutModule {
       x2: -Infinity,
       y2: -Infinity,
     };
-    const maxBoundingbox = Array.from(elem.getElementsByTagName("*"))
+    Array.from(elem.getElementsByTagName("*"))
       .map((item) => item.getBoundingClientRect())
       .reduce(maxRectReducer, initialValue);
     return {
@@ -159,7 +159,7 @@ class PopoutModule {
       );
       link.on("click", () => this.onPopoutClicked(app));
       if (game && game.settings.get("popout", "showButton")) {
-        const title = app.element.find(".window-title").after(link);
+        app.element.find(".window-title").after(link);
       }
       this.log("Attached", app);
     }
@@ -248,7 +248,7 @@ class PopoutModule {
     // We manually intercept the setPosition function of the dialog app in
     // order to handle re-renders that change the position.
     // In particular the FilePicker application.
-    app.setPosition = (args) => {
+    app.setPosition = (_args) => {
       this.log("Intercepted dialog setting position", app.constructor.name);
     };
 
@@ -442,7 +442,7 @@ class PopoutModule {
             )}`
           )
           .off("click")
-          .on("click", (ev) => {
+          .on("click", (_event) => {
             popout._popout_dont_close = true;
             popout.close();
           });
