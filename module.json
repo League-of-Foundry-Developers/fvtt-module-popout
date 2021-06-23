@@ -1,9 +1,9 @@
 {
     "name": "popout",
     "title": "PopOut!",
-    "description": "<p>This module adds a PopOut! button to most actor sheets, journal entries, and applications.</p><p>The PopOut! button allows you to open a sheet/application/document into its own window, for easier viewing or for use with multiple monitors.</p><p>This module <strong>does not work</strong> in the standalone FVTT Application.</p><p>This module is tested on Chrome and Firefox and under Linux and Windows 10.</p><p>This module is only tested against the base Foundry application using the DnD5e system. While most other systems and modules <em>should</em> work; Just because there is a PopOut! button on a window, does not guarantee that it <em>will</em> work. Due to the necessarily brittle nature of how this module is implemented, other modules may lack functionality or break completely when popped out.</p><p>If you do see a incorrect behavior, feel free to report it to the bugs url.</p>",
+    "description": "<p>This module adds a PopOut! button to most actor sheets, journal entries, and applications.</p><p>The PopOut! button allows you to open a sheet/application/document into its own window, for easier viewing or for use with multiple monitors.</p>",
     "version": "2.0",
-    "authors": ["KaKaRoTo", "Alec Posney"],
+    "authors": [{ "name": "KaKaRoTo", "name": "Posnet" }],
     "scripts": ["./popout.js"],
     "styles": [],
     "packs": [],
@@ -13,12 +13,12 @@
             "name": "English",
             "path": "lang/en.json"
         },
-		{
+        {
             "lang": "es",
             "name": "Español",
             "path": "lang/es.json"
         },
-		{
+        {
             "lang": "zh-tw",
             "name": "正體中文",
             "path": "lang/zh-tw.json"
