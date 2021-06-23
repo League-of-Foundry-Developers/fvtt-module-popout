@@ -77,8 +77,7 @@ class PopoutModule {
     });
     game.settings.register("popout", "verboseLogs", {
       name: "Enable more module logging.",
-      hint:
-        "Enables more verbose module logging. This is useful for debugging the module. But otherwise should be left off.",
+      hint: "Enables more verbose module logging. This is useful for debugging the module. But otherwise should be left off.",
       scope: "client",
       config: false,
       default: false,
