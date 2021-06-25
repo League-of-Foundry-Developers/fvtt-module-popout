@@ -3,7 +3,7 @@
     "title": "PopOut!",
     "description": "<p>This module adds a PopOut! button to most actor sheets, journal entries, and applications.</p><p>The PopOut! button allows you to open a sheet/application/document into its own window, for easier viewing or for use with multiple monitors.</p>",
     "version": "2.0",
-    "authors": [{ "name": "KaKaRoTo", "name": "Posnet" }],
+    "authors": [{ "name": "KaKaRoTo"}, {"name": "Posnet" }],
     "scripts": ["./popout.js"],
     "styles": [],
     "packs": [],
