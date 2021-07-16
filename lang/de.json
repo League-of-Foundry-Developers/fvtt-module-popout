@@ -1,0 +1,11 @@
+{
+    "POPOUT.PopOut": "PopOut!",
+    "POPOUT.PopIn": "PopIn!",
+    "POPOUT.showButton": "Zeige den PopOut! Button.",
+    "POPOUT.useWindows": "Öffnet den Bogen in einem neuen Fenster.",
+    "POPOUT.useWindowsHint": "Erzwingt, dass der Bogen in einem neuen Fenster mit minimaler Dekoration geöffnet wird. Ansonsten wird die Standardeinstellung des Browsers verwendet (wahrscheinlich ein neuer Tab).",
+    "POPOUT.boundingBox": "Rahmen-Kompatibilitätsmodus",
+    "POPOUT.boundingBoxHint": "Aktiviert einen komplexeren Algorithmus zur Berechnung der Fenstergröße. Dies wird benötigt, wenn Charakterbögen komplexere Stile haben, welche den regulären Rahmen sprengen könnten. Das Einschalten dieser Option kann die Leistung negativ beeinflussen.",
+    "POPOUT.electronWarning": "Popout! funktioniert nicht innerhalb der Standalone FVTT-Anwendung. Bitte öffne dein Spiel in einem regulären Browser.",
+    "POPOUT.failureWarning": "Konnte kein Popout!-Fenster öffnen. Bitte überprüfe die Einstellungen der Seite. Klicke auf den <i class='fas fa-info-circle'></i> auf der linken Seite der Website-URL."
+}
