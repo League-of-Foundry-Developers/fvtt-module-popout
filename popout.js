@@ -644,14 +644,14 @@ class PopoutModule {
     const oldRender = app.render.bind(app);
     app.render = (force, options) => {
       popout.focus();
-      oldRender(force, options);
+      return oldRender(force, options);
     };
 
     const oldClose = app.close.bind(app);
     app.close = function () {
       // Prevent closing of popped out windows with ESC in main page
       if (game.keyboard.isDown("Escape")) return; // eslint-disable-line no-undef
-      popout.close();
+      return popout.close();
     };
 
     const oldMinimize = app.minimize.bind(app);
@@ -661,14 +661,14 @@ class PopoutModule {
       if (popout._rootWindow.getAttention) {
         popout._rootWindow.getAttention();
       }
-      oldMinimize();
+      return oldMinimize();
     };
 
     const oldMaximize = app.maximize.bind(app);
     app.maximize = () => {
       popout.focus();
       this.log("Trying to focus popout.", app.appId);
-      oldMaximize();
+      return oldMaximize();
     };
 
     state.window = popout;
