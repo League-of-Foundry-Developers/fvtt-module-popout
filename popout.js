@@ -254,6 +254,7 @@ class PopoutModule {
     node.style.top = "50%";
     node.style.left = "50%";
     node.style.transform = "translate(-50%, -50%)";
+    parentApp.element[0].style.zIndex = 0;
 
     // We manually intercept the setPosition function of the dialog app in
     // order to handle re-renders that change the position.
@@ -701,7 +702,9 @@ Hooks.on("ready", () => {
       if (app.pdfData && app.pdfData.url !== undefined) {
         app.open(app.pdfData.url, app.pdfData.offset);
       }
-      app.onViewerReady();
+      if (app.onViewerReady !== undefined) {
+        app.onViewerReady();
+      }
     }
     return;
   });
