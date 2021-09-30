@@ -659,33 +659,36 @@ class PopoutModule {
     // -------------------- Install intercept methods ----------------
 
     const oldRender = app.render.bind(app);
-    app.render = (force, options) => {
+    app.render = (...args) => {
+      this.log("Intercepted popout render", app);
       popout.focus();
-      return oldRender(force, options);
+      return oldRender.apply(app, args);
     };
 
     const oldClose = app.close.bind(app);
-    app.close = function () {
+    app.close = (...args) => {
+      this.log("Intercepted popout close.", app);
       // Prevent closing of popped out windows with ESC in main page
       if (game.keyboard.isDown("Escape")) return; // eslint-disable-line no-undef
-      return popout.close();
+      popout.close();
+      return oldClose.apply(app, args);
     };
 
     const oldMinimize = app.minimize.bind(app);
-    app.minimize = () => {
-      this.log("Trying to focus main window."); // Doesn't appear to work due to popout blockers.
+    app.minimize = (...args) => {
+      this.log("Trying to focus main window.", app); // Doesn't appear to work due to popout blockers.
       popout._rootWindow.focus();
       if (popout._rootWindow.getAttention) {
         popout._rootWindow.getAttention();
       }
-      return oldMinimize();
+      return oldMinimize.apply(app, args);
     };
 
     const oldMaximize = app.maximize.bind(app);
-    app.maximize = () => {
+    app.maximize = (...args) => {
       popout.focus();
-      this.log("Trying to focus popout.", app.appId);
-      return oldMaximize();
+      this.log("Trying to focus popout.", popout);
+      return oldMaximize.apply(app, args);
     };
 
     state.window = popout;
