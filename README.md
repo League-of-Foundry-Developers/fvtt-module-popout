@@ -31,6 +31,10 @@ This ensures that event handlers and other related behavior is preserved, and th
 However it does mean that the page now has 2 logical documents, not 1 because there are 2 or more windows.
 So any assumptions about being able to access something from the root window/document/jquery object are no longer true.
 
+### Disabling PopOut!
+
+If you are a module developer have found that PopOut! is not working correctly or it doesn't make sense for your application to be able to be popped out. You can add the property `_disable_popout_module` to your application, and this module will ignore it.
+
 ### Sidebar (ChatLog...)
 
 Due to the way the sidebar popouts are implemented by Foundry, if you are searching for elements in them. You will have to do the same action again, for the popped out sidebar element.

@@ -131,6 +131,13 @@ class PopoutModule {
   }
 
   async addPopout(app) {
+    if (
+      app._disable_popout_module !== undefined &&
+      app._disable_popout_module
+    ) {
+      this.log("Ignoring app marked as do not popout", app);
+      return;
+    }
     if (this.poppedOut.has(app.appId)) {
       this.log("Already popped out");
       this.poppedOut.get(app.appId).window.focus();
