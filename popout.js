@@ -227,10 +227,10 @@ class PopoutModule {
     const deadline = Date.now() - 1000; // Last click happened within the last second
     for (let state of this.poppedOut.values()) {
       if (state.window._popout_last_click > deadline) {
-        this.log("Intercepting likely dialog of popped out window.", app);
         // We only nest popout intercepted application if they extend the Dialog class.
         // eslint-disable-next-line no-undef
         if (app instanceof Dialog) {
+          this.log("Intercepting likely dialog of popped out window.", app);
           this.moveDialog(app, state.app);
           return true;
         }
