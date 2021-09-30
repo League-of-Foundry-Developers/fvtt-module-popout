@@ -267,7 +267,16 @@ class PopoutModule {
     // order to handle re-renders that change the position.
     // In particular the FilePicker application.
     // eslint-disable-next-line no-unused-vars
-    app.setPosition = (args) => {
+
+    const oldClose = app.close.bind(app);
+    const oldSetPosition = app.setPosition.bind(app);
+    app.close = (...args) => {
+      this.log("Intercepted dialog close, fixing setPosition.", app);
+      app.setPosition = oldSetPosition;
+      return oldClose.apply(app, args);
+    };
+
+    app.setPosition = () => {
       this.log("Intercepted dialog setting position", app.constructor.name);
     };
 
