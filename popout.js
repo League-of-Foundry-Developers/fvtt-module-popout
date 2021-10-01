@@ -518,6 +518,7 @@ class PopoutModule {
         this.log("Closing popout", app.title);
         app.position = poppedOut.position; // Set the original position.
         app._minimized = poppedOut.minimized;
+        app.bringToTop = poppedOut.bringToTop;
         app.render = poppedOut.render;
         app.minimize = poppedOut.minimize;
         app.maximize = poppedOut.maximize;
@@ -658,6 +659,16 @@ class PopoutModule {
 
     // -------------------- Install intercept methods ----------------
 
+    const oldBringToTop = app.bringToTop.bind(app);
+    app.bringToTop = (...args) => {
+      this.log("Intercepted popout bringToTop", app);
+      popout.focus();
+      const result = oldBringToTop.apply(app, args);
+      // In a popout we always want the base sheet to be at the back.
+      app.element[0].style.zIndex = 0;
+      return result;
+    };
+
     const oldRender = app.render.bind(app);
     app.render = (...args) => {
       this.log("Intercepted popout render", app);
@@ -692,6 +703,7 @@ class PopoutModule {
     };
 
     state.window = popout;
+    state.bringToTop = oldBringToTop;
     state.render = oldRender;
     state.minimize = oldMinimize;
     state.maximize = oldMaximize;
