@@ -41,5 +41,5 @@
     "download": "https://github.com/League-of-Foundry-Developers/fvtt-module-popout/archive/v2.4.zip",
     "bugs": "https://github.com/League-of-Foundry-Developers/fvtt-module-popout/issues",
     "minimumCoreVersion": "0.7.0",
-    "compatibleCoreVersion": "0.8.9"
+    "compatibleCoreVersion": "0.9.9"
 }
