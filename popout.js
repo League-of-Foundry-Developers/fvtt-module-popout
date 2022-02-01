@@ -61,6 +61,13 @@ class PopoutModule {
       default: true,
       type: Boolean,
     });
+    game.settings.register("popout", "showButtonLabel", {
+      name: game.i18n.localize("POPOUT.showButtonLabel"),
+      scope: "client",
+      config: true,
+      default: true,
+      type: Boolean,
+    });
     game.settings.register("popout", "useWindows", {
       name: game.i18n.localize("POPOUT.useWindows"),
       hint: game.i18n.localize("POPOUT.useWindowsHint"),
@@ -165,10 +172,9 @@ class PopoutModule {
     if (!document.getElementById(domID)) {
       // Don't create a second link on re-renders;
       /* eslint-disable no-undef */
+      let label = game.settings.get("popout", "showButtonLabel") ? game.i18n.localize("POPOUT.PopOut") : "";
       const link = $(
-        `<a id="${domID}"><i class="fas fa-external-link-alt"></i>${game.i18n.localize(
-          "POPOUT.PopOut"
-        )}</a>`
+        `<a id="${domID}"><i class="fas fa-external-link-alt"></i>${label}</a>`
       );
       /* eslint-enable no-undef */
 
@@ -467,11 +473,10 @@ class PopoutModule {
       if (child.id == domID) {
         // Change Close button
         /* eslint-disable no-unused-vars, no-undef */
+        let label = game.settings.get("popout", "showButtonLabel") ? game.i18n.localize("POPOUT.PopIn") : "";
         $(child)
           .html(
-            `<i class="fas fa-sign-in-alt"></i>${game.i18n.localize(
-              "POPOUT.PopIn"
-            )}`
+            `<i class="fas fa-sign-in-alt"></i>${label}`
           )
           .off("click")
           .on("click", (event) => {
