@@ -33,6 +33,11 @@
             "lang": "de",
             "name": "Deutsch",
             "path": "lang/de.json"
+        },
+        {
+            "lang": "fr",
+            "name": "Français",
+            "path": "lang/fr.json"
         }
     ],
     "readme": "https://github.com/League-of-Foundry-Developers/fvtt-module-popout#readme",
