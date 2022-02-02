@@ -634,6 +634,20 @@ class PopoutModule {
       app.setPosition({ width: "100%", height: "100%", top: 0, left: 0 });
       app._minimized = null;
 
+      // Disable touch zoom
+      popout.document.addEventListener("touchmove", (ev) => {
+        if (ev.scale !== 1) ev.preventDefault();
+      });
+      // Disable right-click
+      popout.document.addEventListener("contextmenu", (ev) =>
+        ev.preventDefault()
+      );
+      // Disable mouse 3, 4, and 5
+      popout.document.addEventListener("pointerdown", (ev) => {
+        if ([3, 4, 5].includes(ev.button)) ev.preventDefault();
+      });
+
+      // From: TextEditor.activateListeners();
       // These event listeners don't get migrated because they are attached to a jQuery
       // selected body. This could be more of an issue in future as anyone doing a delegated
       // event handler will also fail. But that is bad practice.
@@ -653,6 +667,7 @@ class PopoutModule {
         window.TextEditor._onDragEntityLink
       );
       jBody.on("click", "a.inline-roll", window.TextEditor._onClickInlineRoll);
+
       this.log("Final node", node, app);
       Hooks.callAll("PopOut:loaded", app, node); // eslint-disable-line no-undef
     });
