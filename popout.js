@@ -165,8 +165,9 @@ class PopoutModule {
     if (!document.getElementById(domID)) {
       // Don't create a second link on re-renders;
       /* eslint-disable no-undef */
+      // class "header-button" is for compatibility with 🦋 Monarch
       const link = $(
-        `<a id="${domID}"><i class="fas fa-external-link-alt"></i>${game.i18n.localize(
+        `<a id="${domID}" class="header-button"><i class="fas fa-external-link-alt"></i>${game.i18n.localize(
           "POPOUT.PopOut"
         )}</a>`
       );
