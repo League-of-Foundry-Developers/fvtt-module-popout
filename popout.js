@@ -318,6 +318,16 @@ class PopoutModule {
       }
     }
 
+    const cssFixContent = `
+    .tox-tinymce-aux {
+        position: unset !important;
+    }
+    `;
+    const cssFix = document.createElement("style");
+    cssFix.type = "text/css";
+    cssFix.appendChild(document.createTextNode(cssFixContent));
+    head.appendChild(cssFix);
+
     html.appendChild(head);
     html.appendChild(body);
     return html;
