@@ -61,6 +61,13 @@ class PopoutModule {
       default: true,
       type: Boolean,
     });
+    game.settings.register("popout", "iconOnly", {
+      name: game.i18n.localize("POPOUT.iconOnly"),
+      scope: "client",
+      config: true,
+      default: false,
+      type: Boolean,
+    });
     game.settings.register("popout", "useWindows", {
       name: game.i18n.localize("POPOUT.useWindows"),
       hint: game.i18n.localize("POPOUT.useWindowsHint"),
@@ -166,10 +173,14 @@ class PopoutModule {
       // Don't create a second link on re-renders;
       /* eslint-disable no-undef */
       // class "header-button" is for compatibility with 🦋 Monarch
+      let buttonText = game.i18n.localize("POPOUT.PopOut");
+      if (game && game.settings.get("popout", "iconOnly")) {
+        buttonText = "";
+      }
       const link = $(
-        `<a id="${domID}" class="header-button"><i class="fas fa-external-link-alt"></i>${game.i18n.localize(
+        `<a id="${domID}" class="header-button"><i class="fas fa-external-link-alt" title=${game.i18n.localize(
           "POPOUT.PopOut"
-        )}</a>`
+        )}></i>${buttonText}</a>`
       );
       /* eslint-enable no-undef */
 
