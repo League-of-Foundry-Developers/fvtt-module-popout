@@ -2,6 +2,7 @@
     "POPOUT.PopOut": "PopOut!",
     "POPOUT.PopIn": "PopIn!",
     "POPOUT.showButton": "Afficher le bouton PopOut!",
+    "POPOUT.iconOnly": "Icone uniquement pour le bouton.",
     "POPOUT.useWindows": "Ouvrir dans un fenêtre séparée",
     "POPOUT.useWindowsHint": "Forcer l'utilisation d'une fenêtre avec décoration minimale. Sinon, utiliser le comportement par défaut du browser (ouvrira un nouveau tab vraisemblablement)",
     "POPOUT.boundingBox": "Mode de compatibilité 'bounding box'",
