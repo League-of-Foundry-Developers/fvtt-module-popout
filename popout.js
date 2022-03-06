@@ -178,9 +178,9 @@ class PopoutModule {
         buttonText = "";
       }
       const link = $(
-        `<a id="${domID}" class="header-button"><i class="fas fa-external-link-alt" title=${game.i18n.localize(
+        `<a id="${domID}"><i class="fas fa-external-link-alt" title="${game.i18n.localize(
           "POPOUT.PopOut"
-        )}></i>${buttonText}</a>`
+        )}"></i>${buttonText}</a>`
       );
       /* eslint-enable no-undef */
 
@@ -489,11 +489,17 @@ class PopoutModule {
       if (child.id == domID) {
         // Change Close button
         /* eslint-disable no-unused-vars, no-undef */
+
+        let buttonText = game.i18n.localize("POPOUT.PopIn");
+        if (game && game.settings.get("popout", "iconOnly")) {
+          buttonText = "";
+        }
+
         $(child)
           .html(
-            `<i class="fas fa-sign-in-alt"></i>${game.i18n.localize(
+            `<i class="fas fa-sign-in-alt" title="${game.i18n.localize(
               "POPOUT.PopIn"
-            )}`
+            )}"></i>${buttonText}`
           )
           .off("click")
           .on("click", (event) => {
