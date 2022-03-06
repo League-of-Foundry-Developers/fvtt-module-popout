@@ -669,6 +669,13 @@ class PopoutModule {
         if ([3, 4, 5].includes(ev.button)) ev.preventDefault();
       });
 
+      popout.addEventListener("keydown", (event) =>
+        window.keyboard._handleKeyboardEvent(event, false)
+      );
+      popout.addEventListener("keyup", (event) =>
+        window.keyboard._handleKeyboardEvent(event, true)
+      );
+
       // From: TextEditor.activateListeners();
       // These event listeners don't get migrated because they are attached to a jQuery
       // selected body. This could be more of an issue in future as anyone doing a delegated
