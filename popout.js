@@ -122,6 +122,33 @@ class PopoutModule {
     ui.windows = new Proxy(ui.windows, handler); // eslint-disable-line no-undef
     this.log("Installed window interceptor", ui.windows); // eslint-disable-line no-undef
 
+    // NOTE(posnet: 2022-03-13): We need to overwrite the behavior of the hasFocus method of
+    // the game keyboard class since it does not check all documents.
+    libWrapper.register(
+      // eslint-disable-line no-undef
+      "popout",
+      "game.keyboard.hasFocus",
+      () => {
+        const formElements = [
+          "input",
+          "select",
+          "textarea",
+          "option",
+          "button",
+          "[contenteditable]",
+        ];
+        const selector = formElements.map((el) => `${el}:focus`).join(", ");
+        var hasFocus = document.querySelectorAll(selector).length > 0;
+        for (const val of this.poppedOut.values()) {
+          hasFocus =
+            hasFocus &&
+            val.window.document.querySelectorAll(selector).length > 0;
+        }
+        return hasFocus;
+      },
+      "OVERRIDE"
+    );
+
     // NOTE(posnet: 2020-07-12): we need to initialize TinyMCE to ensure its plugins,
     // are loaded into the frame. Otherwise our popouts will not be able to access
     // the lazy loaded JavaScript mce plugins.
