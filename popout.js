@@ -141,7 +141,7 @@ class PopoutModule {
         var hasFocus = document.querySelectorAll(selector).length > 0;
         for (const val of this.poppedOut.values()) {
           hasFocus =
-            hasFocus &&
+            hasFocus ||
             val.window.document.querySelectorAll(selector).length > 0;
         }
         return hasFocus;
