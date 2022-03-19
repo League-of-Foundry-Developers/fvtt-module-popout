@@ -2,6 +2,7 @@
     "POPOUT.PopOut": "PopOut!",
     "POPOUT.PopIn": "PopIn!",
     "POPOUT.showButton": "Show PopOut! Button.",
+    "POPOUT.iconOnly": "Icon only button.",
     "POPOUT.useWindows": "Pop sheets out into windows",
     "POPOUT.useWindowsHint": "Force the popped out sheet to be a window with minimal decorations. Otherwise uses your browser's default (a new tab most likely)",
     "POPOUT.boundingBox": "Bounding box compatibility mode",

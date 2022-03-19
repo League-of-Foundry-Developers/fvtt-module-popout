@@ -1,11 +1,14 @@
 {
-    "POPOUT.PopOut": "Nueva Ventana",
+    "I18N.LANGUAGE": "Español",
+    "I18N.MAINTAINERS": "@Viriato139ac#0342",
+	
+    "POPOUT.PopOut": "Nueva ventana",
     "POPOUT.PopIn": "Volver",
-    "POPOUT.showButton": "Agrega el botón a la nueva ventana.",
+    "POPOUT.showButton": "Agrega el botón nueva ventana",
     "POPOUT.useWindows": "Abrir las hojas en ventanas independientes",
     "POPOUT.useWindowsHint": "Se fuerza a abrir las hojas en nuevas ventanas independientes con aspecto minimalista. Si no, se utilizarán los valores por defecto del navegador (probablemente la misma configuración que tengas para una nueva pestaña)",
     "POPOUT.boundingBox": "Modo de compatibilidad de cuadro delimitador",
-    "POPOUT.boundingBoxHint": "Habilita un algoritmo más complejo para calcular el tamaño de la ventana. Esto es necesario cuando las hojas de caracteres tienen estilos complicados que pueden desbordar su cuadro delimitador habitual. Habilitar esta opción puede afectar negativamente al rendimiento.",
-    "POPOUT.electronWarning": "Popout! no funciona en el cliente FVTT. Por favor, ingrese en la partida desde un navegador.",
-    "POPOUT.failureWarning": "No se puede abrir una ventana nueva. Por favor, compruebe los ajustes/permisos del sitio web. Haga clic en el <i class='fas fa-info-circle'></i> que hay a la izquierda de la dirección URL."
+    "POPOUT.boundingBoxHint": "Habilita un algoritmo más complejo para calcular el tamaño de la ventana. Esto es necesario cuando las hojas de caracteres tienen estilos complicados que pueden desbordar su cuadro delimitador habitual. Habilitar esta opción puede afectar negativamente al rendimiento",
+    "POPOUT.electronWarning": "Popout! no funciona en el cliente FVTT. Por favor, ingrese en la partida desde un navegador",
+    "POPOUT.failureWarning": "No se puede abrir una ventana nueva. Por favor, compruebe los ajustes/permisos del sitio web. Haga clic en el <i class='fas fa-info-circle'></i> que hay a la izquierda de la dirección URL"
 }

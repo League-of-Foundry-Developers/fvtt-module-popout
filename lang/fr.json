@@ -1,0 +1,12 @@
+{
+    "POPOUT.PopOut": "PopOut!",
+    "POPOUT.PopIn": "PopIn!",
+    "POPOUT.showButton": "Afficher le bouton PopOut!",
+    "POPOUT.iconOnly": "Icone uniquement pour le bouton.",
+    "POPOUT.useWindows": "Ouvrir dans un fenêtre séparée",
+    "POPOUT.useWindowsHint": "Forcer l'utilisation d'une fenêtre avec décoration minimale. Sinon, utiliser le comportement par défaut du browser (ouvrira un nouveau tab vraisemblablement)",
+    "POPOUT.boundingBox": "Mode de compatibilité 'bounding box'",
+    "POPOUT.boundingBoxHint": "Active un algorithme plus complexe de calcul de la taille des fenêtres. Ceci est requis pour les fiches de personnage qui ont des styles compliqués dépassant la 'bounding box' normale. Activer cette option peut négativement impacter les performances.",
+    "POPOUT.electronWarning": "Popout! ne peut pas être utilisé depuis le client FoundryVTT. Veuillez ouvrir FoundryVTT depuis un browser.",
+    "POPOUT.failureWarning": "Impossible d'ouvrir une fenêtre PopOut!. Veuillez vérifier les paramètres/permissions accordées pour ce site. Cliquez le <i class='fas fa-info-circle'></i> à gauche de la barre d'addresse contenant l'URL du site."
+}

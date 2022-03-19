@@ -1,24 +1,26 @@
 {
     "name": "popout",
     "title": "PopOut!",
-    "description": "<p>Pop out Actor sheets and Journal entries into their own windows for easier viewing.</p><p>Does not work in the standalone FVTT Application.</p>",
-    "version": "1.2",
-    "authors": ["KaKaRoTo", "Alec Posney"],
+    "description": "<p>This module adds a PopOut! button to most actor sheets, journal entries, and applications.</p><p>The PopOut! button allows you to open a sheet/application/document into its own window, for easier viewing or for use with multiple monitors.</p>",
+    "version": "2.8",
+    "author": "KaKaRoTo, Posnet",
+    "authors": [{ "name": "KaKaRoTo" }, { "name": "Posnet" }],
     "scripts": ["./popout.js"],
     "styles": [],
     "packs": [],
+    "dependencies": [{ "name": "lib-wrapper", "type": "module" }],
     "languages": [
         {
             "lang": "en",
             "name": "English",
             "path": "lang/en.json"
         },
-		{
+        {
             "lang": "es",
-            "name": "Spanish",
+            "name": "Español",
             "path": "lang/es.json"
         },
-		{
+        {
             "lang": "zh-tw",
             "name": "正體中文",
             "path": "lang/zh-tw.json"
@@ -27,11 +29,23 @@
             "lang": "ja",
             "name": "日本語",
             "path": "lang/ja.json"
+        },
+        {
+            "lang": "de",
+            "name": "Deutsch",
+            "path": "lang/de.json"
+        },
+        {
+            "lang": "fr",
+            "name": "Français",
+            "path": "lang/fr.json"
         }
     ],
+    "readme": "https://github.com/League-of-Foundry-Developers/fvtt-module-popout#readme",
     "url": "https://github.com/League-of-Foundry-Developers/fvtt-module-popout",
     "manifest": "https://raw.githubusercontent.com/League-of-Foundry-Developers/fvtt-module-popout/master/module.json",
-    "download": "https://github.com/League-of-Foundry-Developers/fvtt-module-popout/archive/v1.2.zip",
-    "minimumCoreVersion": "0.6.0",
-    "compatibleCoreVersion": "0.8.0"
+    "download": "https://github.com/League-of-Foundry-Developers/fvtt-module-popout/archive/v2.8.zip",
+    "bugs": "https://github.com/League-of-Foundry-Developers/fvtt-module-popout/issues",
+    "minimumCoreVersion": "0.8.0",
+    "compatibleCoreVersion": "9"
 }
