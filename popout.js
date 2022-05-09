@@ -808,7 +808,7 @@ Hooks.on("ready", () => {
     if (window.ui.PDFoundry !== undefined) {
       app._viewer = false;
       if (app.pdfData && app.pdfData.url !== undefined) {
-        app.open(app.pdfData.url, app.pdfData.offset);
+        app.open(new URL(app.pdfData.url, window.location).href, app.pdfData.offset);
       }
       if (app.onViewerReady !== undefined) {
         app.onViewerReady();
