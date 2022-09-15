@@ -126,6 +126,7 @@ class PopoutModule {
     // the game keyboard class since it does not check all documents.
     libWrapper.register(
       // eslint-disable-line no-undef
+      // eslint-disable-line no-undef
       "popout",
       "game.keyboard.hasFocus",
       () => {
@@ -757,7 +758,7 @@ class PopoutModule {
     app.close = (...args) => {
       this.log("Intercepted popout close.", app);
       // Prevent closing of popped out windows with ESC in main page
-      if (game.keyboard.isDown("Escape")) return; // eslint-disable-line no-undef
+      if (game.keyboard.downKeys.has("Escape")) return; // eslint-disable-line no-undef
       popout.close();
       return oldClose.apply(app, args);
     };
@@ -808,7 +809,10 @@ Hooks.on("ready", () => {
     if (window.ui.PDFoundry !== undefined) {
       app._viewer = false;
       if (app.pdfData && app.pdfData.url !== undefined) {
-        app.open(new URL(app.pdfData.url, window.location).href, app.pdfData.offset);
+        app.open(
+          new URL(app.pdfData.url, window.location).href,
+          app.pdfData.offset
+        );
       }
       if (app.onViewerReady !== undefined) {
         app.onViewerReady();
