@@ -88,8 +88,8 @@ class PopoutModule {
       name: "Enable more module logging.",
       hint: "Enables more verbose module logging. This is useful for debugging the module. But otherwise should be left off.",
       scope: "client",
-      config: false,
-      default: false,
+      config: true,
+      default: true,
       type: Boolean,
     });
     /* eslint-enable no-undef */
@@ -124,8 +124,8 @@ class PopoutModule {
 
     // NOTE(posnet: 2022-03-13): We need to overwrite the behavior of the hasFocus method of
     // the game keyboard class since it does not check all documents.
+    // eslint-disable-next-line no-undef
     libWrapper.register(
-      // eslint-disable-line no-undef
       "popout",
       "game.keyboard.hasFocus",
       () => {
@@ -351,7 +351,7 @@ class PopoutModule {
     for (const child of [...head.children]) {
       if (child.nodeName === "SCRIPT" && child.src) {
         const src = child.src.replace(window.location.origin, "");
-        if (!src.match(/tinymce|jquery|webfont|pdfjs/)) {
+        if (!src.match(/tinymce|jquery|webfont|pdfjs|prosemirror|common/)) {
           child.remove();
         }
       }
@@ -709,26 +709,61 @@ class PopoutModule {
         window.keyboard._handleKeyboardEvent(event, true)
       );
 
-      // From: TextEditor.activateListeners();
-      // These event listeners don't get migrated because they are attached to a jQuery
-      // selected body. This could be more of an issue in future as anyone doing a delegated
-      // event handler will also fail. But that is bad practice.
-      // The following regex will find examples of delegated event handlers in foundry.js
-      // `on\(("|')[^'"]+("|'), *("|')`
-      const jBody = $(body); // eslint-disable-line no-undef
-      jBody.on(
-        "click",
-        "a.entity-link",
-        window.TextEditor._onClickEntityLink !== undefined
-          ? window.TextEditor._onClickEntityLink
-          : window.TextEditor._onClickContentLink
-      );
-      jBody.on(
-        "dragstart",
-        "a.entity-link",
-        window.TextEditor._onDragEntityLink
-      );
-      jBody.on("click", "a.inline-roll", window.TextEditor._onClickInlineRoll);
+      // COMPAT(aposney: 2022-09-17) v9
+      // eslint-disable-next-line no-undef
+      if (game.release.generation < 10) {
+        // From: TextEditor.activateListeners();
+        // These event listeners don't get migrated because they are attached to a jQuery
+        // selected body. This could be more of an issue in future as anyone doing a delegated
+        // event handler will also fail. But that is bad practice.
+        // The following regex will find examples of delegated event handlers in foundry.js
+        // `on\(("|')[^'"]+("|'), *("|')`
+        const jBody = $(body); // eslint-disable-line no-undef
+        jBody.on(
+          "click",
+          "a.entity-link",
+          window.TextEditor._onClickEntityLink !== undefined
+            ? window.TextEditor._onClickEntityLink
+            : window.TextEditor._onClickContentLink
+        );
+        jBody.on(
+          "dragstart",
+          "a.entity-link",
+          window.TextEditor._onDragEntityLink
+        );
+        jBody.on(
+          "click",
+          "a.inline-roll",
+          window.TextEditor._onClickInlineRoll
+        );
+      } else {
+        // From: TextEditor.activateListeners();
+        // These event listeners don't get migrated because they are attached to a jQuery
+        // selected body. This could be more of an issue in future as anyone doing a delegated
+        // event handler will also fail. But that is bad practice.
+        // The following regex will find examples of delegated event handlers in foundry.js
+        // `on\(("|')[^'"]+("|'), *("|')`
+        const jBody = $(body); // eslint-disable-line no-undef
+        jBody.on(
+          "click",
+          "a.content-link",
+          window.TextEditor._onClickEntityLink !== undefined
+            ? window.TextEditor._onClickEntityLink
+            : window.TextEditor._onClickContentLink
+        );
+        jBody.on(
+          "dragstart",
+          "a.content-link",
+          window.TextEditor._onDragEntityLink !== undefined
+            ? window.TextEditor._onDragEntityLink
+            : window.TextEditor._onDragContentLink
+        );
+        jBody.on(
+          "click",
+          "a.inline-roll",
+          window.TextEditor._onClickInlineRoll
+        );
+      }
 
       this.log("Final node", node, app);
       Hooks.callAll("PopOut:loaded", app, node); // eslint-disable-line no-undef
@@ -757,7 +792,13 @@ class PopoutModule {
     app.close = (...args) => {
       this.log("Intercepted popout close.", app);
       // Prevent closing of popped out windows with ESC in main page
-      if (game.keyboard.isDown("Escape")) return; // eslint-disable-line no-undef
+      // eslint-disable-next-line no-undef
+      if (game.keyboard.isDown !== undefined) {
+        // COMPAT(aposney: 2022-09-17) v9 compat
+        if (game.keyboard.isDown("Escape")) return; // eslint-disable-line no-undef
+      } else {
+        if (game.keyboard.downKeys.has("Escape")) return; // eslint-disable-line no-undef
+      }
       popout.close();
       return oldClose.apply(app, args);
     };
@@ -808,7 +849,10 @@ Hooks.on("ready", () => {
     if (window.ui.PDFoundry !== undefined) {
       app._viewer = false;
       if (app.pdfData && app.pdfData.url !== undefined) {
-        app.open(new URL(app.pdfData.url, window.location).href, app.pdfData.offset);
+        app.open(
+          new URL(app.pdfData.url, window.location).href,
+          app.pdfData.offset
+        );
       }
       if (app.onViewerReady !== undefined) {
         app.onViewerReady();
