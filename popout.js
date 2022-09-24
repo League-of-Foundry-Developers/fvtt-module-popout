@@ -122,6 +122,27 @@ class PopoutModule {
     ui.windows = new Proxy(ui.windows, handler); // eslint-disable-line no-undef
     this.log("Installed window interceptor", ui.windows); // eslint-disable-line no-undef
 
+    // COMPAT(aposney: 2022-09-24) v10 prosemirror
+    // This is very stupid and bad, but people seem unaware that getElementById is not good.
+    // In theory this might have performance issues, but I don't care at this point.
+    // And it does fix the problem with prosemirror, and will help with any other modules making
+    // the same mistake.
+    // eslint-disable-next-line no-undef
+    if (game.release.generation >= 10) {
+      const oldGetElementById = document.getElementById.bind(document);
+      document.getElementById = function (id) {
+        let elem = oldGetElementById(id);
+        if (elem === null && this.poppedOut.size > 0) {
+          for (const entry of this.poppedOut) {
+            const doc = entry[1].window.document;
+            elem = doc.getElementById(id);
+            if (elem !== null) break;
+          }
+        }
+        return elem;
+      }.bind(this);
+    }
+
     // NOTE(posnet: 2022-03-13): We need to overwrite the behavior of the hasFocus method of
     // the game keyboard class since it does not check all documents.
     // eslint-disable-next-line no-undef

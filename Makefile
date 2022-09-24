@@ -1,4 +1,4 @@
-all: lint format test build
+all: lint format test # build
 
 .PHONY: init
 init:
