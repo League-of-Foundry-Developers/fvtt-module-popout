@@ -88,8 +88,8 @@ class PopoutModule {
       name: "Enable more module logging.",
       hint: "Enables more verbose module logging. This is useful for debugging the module. But otherwise should be left off.",
       scope: "client",
-      config: true,
-      default: true,
+      config: false,
+      default: false,
       type: Boolean,
     });
     /* eslint-enable no-undef */
