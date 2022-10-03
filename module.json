@@ -9,7 +9,11 @@
   "scripts": ["./popout.js"],
   "styles": [],
   "packs": [],
-  "dependencies": [{ "name": "lib-wrapper", "type": "module" }],
+  "relationships": {
+    "requires": [
+      { "id": "lib-wrapper", "type": "module" }
+    ]
+  },
   "languages": [
     {
       "lang": "en",
