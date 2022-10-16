@@ -232,7 +232,7 @@ class PopoutModule {
       );
       /* eslint-enable no-undef */
 
-      link.on("click", () => this.onPopoutClicked(app));
+      link.on("pointerdown", () => this.onPopoutClicked(app));
       // eslint-disable-next-line no-undef
       if (game && game.settings.get("popout", "showButton")) {
         app.element.find(".window-title").after(link);
@@ -577,6 +577,8 @@ class PopoutModule {
 
     // -------------------- Add unload handlers --------------------
 
+    Hooks.callAll("PopOut:loading", app, popout);
+
     window.addEventListener("unload", async (event) => {
       this.log("Unload event", event);
       const appId = app.appId;
@@ -821,7 +823,6 @@ class PopoutModule {
         if (game.keyboard.downKeys.has("Escape")) return; // eslint-disable-line no-undef
       }
       popout.close();
-      return oldClose.apply(app, args);
     };
 
     const oldMinimize = app.minimize.bind(app);
