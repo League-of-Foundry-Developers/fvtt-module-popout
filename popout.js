@@ -856,6 +856,15 @@ class PopoutModule {
       return oldMaximize.apply(app, args);
     };
 
+    const oldSetPosition = app.setPosition.bind(app);
+    app.setPosition = (...args) => {
+      if (this.poppedOut.has(app.appId)) {
+        this.log("Intercepted application setting position", app.constructor.name);
+        return {};
+      }
+      return oldSetPosition.apply(app, args);
+    };
+
     state.window = popout;
     state.bringToTop = oldBringToTop;
     state.render = oldRender;
