@@ -226,7 +226,7 @@ class PopoutModule {
         buttonText = "";
       }
       const link = $(
-        `<a id="${domID}"><i class="fas fa-external-link-alt" title="${game.i18n.localize(
+        `<a id="${domID}" class="popout-module-button"><i class="fas fa-external-link-alt" title="${game.i18n.localize(
           "POPOUT.PopOut"
         )}"></i>${buttonText}</a>`
       );
