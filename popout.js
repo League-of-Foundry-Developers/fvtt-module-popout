@@ -692,6 +692,21 @@ class PopoutModule {
         popout.moveTo(50, 50);
       }
 
+      const allFonts = FontConfig._collectDefinitions(); // eslint-disable-line no-undef
+      const families = new Set();
+      for (const definitions of allFonts) {
+        for (const [family] of Object.entries(definitions)) {
+          families.add(family);
+        }
+      }
+      document.fonts.forEach((font) => {
+        if (families.has(font.family)) {
+          try {
+            popout.document.fonts.add(font);
+          } catch {} // eslint-disable-line no-empty
+        }
+      });
+
       const body = event.target.getElementsByTagName("body")[0];
       const node = targetDoc.adoptNode(state.node);
       body.style.overflow = "auto";
