@@ -35,6 +35,12 @@ So any assumptions about being able to access something from the root window/doc
 
 If you are a module developer have found that PopOut! is not working correctly or it doesn't make sense for your application to be able to be popped out. You can add the property `_disable_popout_module` to your application, and this module will ignore it.
 
+A second option is when creating an application or dialog, you can add the `popOutModuleDisable` attribute to it's options argument, this will also disable PopOut for that specific object. For example:
+
+```js
+Dialog.prompt({ title: '', options: { popOutModuleDisable: true }});
+```
+
 ### Sidebar (ChatLog...)
 
 Due to the way the sidebar popouts are implemented by Foundry, if you are searching for elements in them. You will have to do the same action again, for the popped out sidebar element.

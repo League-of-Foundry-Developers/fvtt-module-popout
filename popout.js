@@ -226,7 +226,7 @@ class PopoutModule {
         buttonText = "";
       }
       const link = $(
-        `<a id="${domID}"><i class="fas fa-external-link-alt" title="${game.i18n.localize(
+        `<a id="${domID}" class="popout-module-button"><i class="fas fa-external-link-alt" title="${game.i18n.localize(
           "POPOUT.PopOut"
         )}"></i>${buttonText}</a>`
       );
@@ -694,6 +694,24 @@ class PopoutModule {
         popout.moveTo(50, 50);
       }
 
+      // eslint-disable-next-line no-undef
+      if (game.release.generation >= 10) {
+        const allFonts = FontConfig._collectDefinitions(); // eslint-disable-line no-undef
+        const families = new Set();
+        for (const definitions of allFonts) {
+          for (const [family] of Object.entries(definitions)) {
+            families.add(family);
+          }
+        }
+        document.fonts.forEach((font) => {
+          if (families.has(font.family)) {
+            try {
+              popout.document.fonts.add(font);
+            } catch {} // eslint-disable-line no-empty
+          }
+        });
+      }
+
       const body = event.target.getElementsByTagName("body")[0];
       const node = targetDoc.adoptNode(state.node);
       body.style.overflow = "auto";
@@ -840,6 +858,18 @@ class PopoutModule {
       popout.focus();
       this.log("Trying to focus popout.", popout);
       return oldMaximize.apply(app, args);
+    };
+
+    const oldSetPosition = app.setPosition.bind(app);
+    app.setPosition = (...args) => {
+      if (this.poppedOut.has(app.appId)) {
+        this.log(
+          "Intercepted application setting position",
+          app.constructor.name
+        );
+        return {};
+      }
+      return oldSetPosition.apply(app, args);
     };
 
     state.window = popout;
