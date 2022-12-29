@@ -226,13 +226,13 @@ class PopoutModule {
         buttonText = "";
       }
       const link = $(
-        `<a id="${domID}" class="popout-module-button"><i class="fas fa-external-link-alt" title="${game.i18n.localize(
+        `<a id="${domID}" class="popout-module-button header-button"><i class="fas fa-external-link-alt" title="${game.i18n.localize(
           "POPOUT.PopOut"
         )}"></i>${buttonText}</a>`
       );
       /* eslint-enable no-undef */
 
-      link.on("pointerdown", () => this.onPopoutClicked(app));
+      link.on("click", () => this.onPopoutClicked(app));
       // eslint-disable-next-line no-undef
       if (game && game.settings.get("popout", "showButton")) {
         app.element.find(".window-title").after(link);
