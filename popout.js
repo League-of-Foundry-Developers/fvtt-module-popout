@@ -823,7 +823,6 @@ class PopoutModule {
     const oldRender = app.render.bind(app);
     app.render = (...args) => {
       this.log("Intercepted popout render", app);
-      popout.focus();
       return oldRender.apply(app, args);
     };
 
