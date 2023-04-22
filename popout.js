@@ -577,6 +577,8 @@ class PopoutModule {
 
     // -------------------- Add unload handlers --------------------
 
+    Hooks.callAll("PopOut:loading", app, popout); // eslint-disable-line no-undef
+
     window.addEventListener("unload", async (event) => {
       this.log("Unload event", event);
       const appId = app.appId;
@@ -837,7 +839,6 @@ class PopoutModule {
       } else {
         if (game.keyboard.downKeys.has("Escape")) return; // eslint-disable-line no-undef
       }
-      popout.close();
       return oldClose.apply(app, args);
     };
 

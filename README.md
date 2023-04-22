@@ -82,6 +82,10 @@ Hooks.callAll("PopOut:popout", app, popout);
 // node: is the html element of the application after it has been moved to the new window.
 Hooks.callAll("Popout:loaded", app, node);
 
+// app: is the foundry application being popped out.
+// popout: is the browser window object where the popped out element will be moved.
+Hooks.callAll("Popout:loading", app, popout);
+
 // app: is the foundry application being popped in.
 Hooks.callAll("PopOut:popin", app);
 
