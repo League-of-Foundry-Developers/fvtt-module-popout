@@ -839,6 +839,7 @@ class PopoutModule {
       } else {
         if (game.keyboard.downKeys.has("Escape")) return; // eslint-disable-line no-undef
       }
+      popout.close();
       return oldClose.apply(app, args);
     };
 
