@@ -6,11 +6,17 @@ The PopOut! button allows you to open a sheet/application/document into its own 
 
 This module **does not work** in the Electron window (the standalone FVTT Application) and can only be used from regular browsers. (i.e. visiting localhost:30000 if you are running it yourself.)
 
-This module is tested on Chrome and Firefox and under Linux and Windows 10.
+This module is currently tested on Chrome and ~Firefox~ and under MacOS, ~Linux~, and Windows 10.
 
-This module is only tested against the base Foundry application using the DnD5e system. While most other systems and modules *should* work; Just because there is a PopOut! button on a window, does not guarantee that it *will* work. 
+This module is only tested against the base Foundry application using the DnD5e system. While most other systems and modules _should_ work; Just because there is a PopOut! button on a window, does not guarantee that it _will_ work.
+
+In particular systems using more advanced frameworks like react/svelte/vue will likely _not_ work and can not be made to work.
 
 Due to the necessarily brittle nature of how this module is implemented, other modules may lack functionality or break completely when popped out. See the Compatibility section for a description of how you can fix this if you are module developer.
+
+### Firefox
+
+~Due to a recent update from Firefox that changed the way the `instanceof` method works~ Turns out [the bug](https://bugzilla.mozilla.org/show_bug.cgi?id=339884) is 17 years old, I have no idea why some things are encountering it now. Some core JQuery functions are broken when operating on popped out html nodes. Therefore **I am no longer supporting Firefox**, please use chrome. If you are interested, the following gist can [replicate the issue](https://gist.github.com/Posnet/9d87f790d4f3c64ed468559600c76302).
 
 # Installation
 
