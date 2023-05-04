@@ -122,7 +122,7 @@ class PopoutModule {
     ui.windows = new Proxy(ui.windows, handler); // eslint-disable-line no-undef
     this.log("Installed window interceptor", ui.windows); // eslint-disable-line no-undef
 
-    // COMPAT(aposney: 2022-09-24) v10 prosemirror
+    // COMPAT(posnet: 2022-09-24) v10 prosemirror
     // This is very stupid and bad, but people seem unaware that getElementById is not good.
     // In theory this might have performance issues, but I don't care at this point.
     // And it does fix the problem with prosemirror, and will help with any other modules making
@@ -750,7 +750,7 @@ class PopoutModule {
         window.keyboard._handleKeyboardEvent(event, true)
       );
 
-      // COMPAT(aposney: 2022-09-17) v9
+      // COMPAT(posnet: 2022-09-17) v9
       // eslint-disable-next-line no-undef
       if (game.release.generation < 10) {
         // From: TextEditor.activateListeners();
@@ -834,7 +834,7 @@ class PopoutModule {
       // Prevent closing of popped out windows with ESC in main page
       // eslint-disable-next-line no-undef
       if (game.keyboard.isDown !== undefined) {
-        // COMPAT(aposney: 2022-09-17) v9 compat
+        // COMPAT(posnet: 2022-09-17) v9 compat
         if (game.keyboard.isDown("Escape")) return; // eslint-disable-line no-undef
       } else {
         if (game.keyboard.downKeys.has("Escape")) return; // eslint-disable-line no-undef
