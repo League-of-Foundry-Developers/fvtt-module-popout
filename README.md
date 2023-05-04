@@ -39,7 +39,7 @@ So any assumptions about being able to access something from the root window/doc
 
 ### Tooltips
 
-Unfortunately an update to foundry-vtt (approximately v10) has broken the built in tool-tips functionality in a way that can't be fixed easily. I have added in a very brittle fix with the latest version, but it will likely break modules that are overriding or modifying tooltip behavior, but there is nothing I can currently do about this.
+Unfortunately an update to foundry-vtt (approximately v10) has broken the built in tool-tips functionality in a way that can't be fixed easily. I have added in a very brittle fix with the latest version, but it will likely break modules that are overriding or modifying tooltip behavior, such as calling `tooltip.activate` manually, but there is nothing I can currently do about this. A notable example of something that is basically unfix-able, is the tooltip in DnD 5e that breaks down AC by effect.
 
 ### Disabling PopOut!
 
