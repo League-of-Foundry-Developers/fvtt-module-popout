@@ -477,7 +477,7 @@ window.tooltip_manager = new TooltipManager();
       hint: game.i18n.localize("POPOUT.boundingBoxHint"),
       scope: "client",
       config: true,
-      default: false,
+      default: true,
       type: Boolean,
     });
     game.settings.register("popout", "verboseLogs", {

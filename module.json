@@ -51,7 +51,7 @@
   "bugs": "https://github.com/League-of-Foundry-Developers/fvtt-module-popout/issues",
   "compatibility": {
     "minimum": "10",
-    "verified": "11.302",
+    "verified": "11.315",
     "maximum": "11"
   }
 }
