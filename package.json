@@ -4,7 +4,7 @@
     "@swc/cli": "^0.1.46",
     "@swc/core": "^1.2.61",
     "eslint": "^7.29.0",
-    "testcafe": "^1.14.2",
+    "testcafe": "^3.5.0",
     "prettier": "^2.3.1"
   }
 }
