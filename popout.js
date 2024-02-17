@@ -836,10 +836,21 @@ window.tooltip_manager = new TooltipManager();
           offsets.width = `calc(100% - ${bounding.width - width}px)`;
           width = bounding.width;
         }
-        if (bounding.height > height) {
-          offsets.height = `calc(100% - ${bounding.height - height}px)`;
-          height = bounding.height;
-        }
+        // BREAKFIX(posnet: 2024-02-18)
+        // If an element has overflow: hidden set, this breaks the
+        // bounding box algo since it can end up with a bounding height
+        // larget than the window. I thought that changing the Infinity
+        // values in the recursiveBoundingBox function would fix this,
+        // however it it also fails in different ways. For the moment
+        // I'm going to make a break/fix release to remove the height
+        // calc because as far as a know the only side elements in pathfinder
+        // or foundry are the ones overflowing. So we'll just set height
+        // to the the default value for now.
+        // if (bounding.height > height) {
+        //   offsets.height = `calc(100% - ${bounding.height - height}px)`;
+        //   height = bounding.height;
+        // }
+        // BREAKFIX
       }
 
       const padding = 30;
