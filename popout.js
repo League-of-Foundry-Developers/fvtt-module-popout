@@ -12,33 +12,33 @@ class PopoutModule {
 class TooltipManager {
 
   /**
-   * A cached reference to the global tooltip element
-   * @type {HTMLElement}
-   */
+    * A cached reference to the global tooltip element
+    * @type {HTMLElement}
+    */
   tooltip = document.getElementById("tooltip");
 
   /**
-   * A reference to the HTML element which is currently tool-tipped, if any.
-   * @type {HTMLElement|null}
-   */
+    * A reference to the HTML element which is currently tool-tipped, if any.
+    * @type {HTMLElement|null}
+    */
   element = null;
 
   /**
-   * An amount of margin which is used to offset tooltips from their anchored element.
-   * @type {number}
-   */
+    * An amount of margin which is used to offset tooltips from their anchored element.
+    * @type {number}
+    */
   static TOOLTIP_MARGIN_PX = 5;
 
   /**
-   * The number of milliseconds delay which activates a tooltip on a "long hover".
-   * @type {number}
-   */
+    * The number of milliseconds delay which activates a tooltip on a "long hover".
+    * @type {number}
+    */
   static TOOLTIP_ACTIVATION_MS = 500;
 
   /**
-   * The directions in which a tooltip can extend, relative to its tool-tipped element.
-   * @enum {string}
-   */
+    * The directions in which a tooltip can extend, relative to its tool-tipped element.
+    * @enum {string}
+    */
   static TOOLTIP_DIRECTIONS = {
     UP: "UP",
     DOWN: "DOWN",
@@ -48,37 +48,37 @@ class TooltipManager {
   };
 
   /**
-   * The number of pixels buffer around a locked tooltip zone before they should be dismissed.
-   * @type {number}
-   */
+    * The number of pixels buffer around a locked tooltip zone before they should be dismissed.
+    * @type {number}
+    */
   static LOCKED_TOOLTIP_BUFFER_PX = 50;
 
   /**
-   * Is the tooltip currently active?
-   * @type {boolean}
-   */
+    * Is the tooltip currently active?
+    * @type {boolean}
+    */
   #active = false;
 
   /**
-   * A reference to a window timeout function when an element is activated.
-   */
+    * A reference to a window timeout function when an element is activated.
+    */
   #activationTimeout;
 
   /**
-   * A reference to a window timeout function when an element is deactivated.
-   */
+    * A reference to a window timeout function when an element is deactivated.
+    */
   #deactivationTimeout;
 
   /**
-   * An element which is pending tooltip activation if hover is sustained
-   * @type {HTMLElement|null}
-   */
+    * An element which is pending tooltip activation if hover is sustained
+    * @type {HTMLElement|null}
+    */
   #pending;
 
   /**
-   * Maintain state about active locked tooltips in order to perform appropriate automatic dismissal.
-   * @type {{elements: Set<HTMLElement>, boundingBox: Rectangle}}
-   */
+    * Maintain state about active locked tooltips in order to perform appropriate automatic dismissal.
+    * @type {{elements: Set<HTMLElement>, boundingBox: Rectangle}}
+    */
   #locked = {
     elements: new Set(),
     boundingBox: {}
@@ -87,9 +87,10 @@ class TooltipManager {
   /* -------------------------------------------- */
 
   /**
-   * Activate interactivity by listening for hover events on HTML elements which have a data-tooltip defined.
-   */
+    * Activate interactivity by listening for hover events on HTML elements which have a data-tooltip defined.
+    */
   activateEventListeners() {
+    console.log(document.body.NAME);
     document.body.addEventListener("pointerenter", this.#onActivate.bind(this), true);
     document.body.addEventListener("pointerleave", this.#onDeactivate.bind(this), true);
     document.body.addEventListener("pointerup", this._onLockTooltip.bind(this), true);
@@ -102,12 +103,13 @@ class TooltipManager {
   /* -------------------------------------------- */
 
   /**
-   * Handle hover events which activate a tooltipped element.
-   * @param {PointerEvent} event    The initiating pointerenter event
-   */
+    * Handle hover events which activate a tooltipped element.
+    * @param {PointerEvent} event    The initiating pointerenter event
+    */
   #onActivate(event) {
     // if ( Tour.tourInProgress ) return; // Don't activate tooltips during a tour
     const element = event.target;
+    if ( element.closest(".editor-content.ProseMirror") ) return; // Don't activate tooltips inside text editors.
     if ( !element.dataset.tooltip ) {
       // Check if the element has moved out from underneath the cursor and pointerenter has fired on a non-child of the
       // tooltipped element.
@@ -115,26 +117,32 @@ class TooltipManager {
       return;
     }
 
-    // Don't activate tooltips if the element contains an active context menu
+    // Don't activate tooltips if the element contains an active context menu or is in a matching link tooltip
     if ( element.matches("#context-menu") || element.querySelector("#context-menu") ) return;
 
     // If the tooltip is currently active, we can move it to a new element immediately
-    if ( this.#active ) this.activate(element);
-    else this.#clearDeactivation();
+    if ( this.#active ) {
+      this.activate(element);
+      return;
+    }
 
-    // Otherwise, delay activation to determine user intent
+    // Clear any existing deactivation workflow
+    this.#clearDeactivation();
+
+    // Delay activation to determine user intent
     this.#pending = element;
     this.#activationTimeout = window.setTimeout(() => {
-      this.activate(element);
+      this.#activationTimeout = null;
+      if ( this.#pending ) this.activate(this.#pending);
     }, this.constructor.TOOLTIP_ACTIVATION_MS);
   }
 
   /* -------------------------------------------- */
 
   /**
-   * Handle hover events which deactivate a tooltipped element.
-   * @param {PointerEvent} event    The initiating pointerleave event
-   */
+    * Handle hover events which deactivate a tooltipped element.
+    * @param {PointerEvent} event    The initiating pointerleave event
+    */
   #onDeactivate(event) {
     if ( event.target !== (this.element ?? this.#pending) ) return;
     const parent = event.target.parentElement.closest("[data-tooltip]");
@@ -145,16 +153,17 @@ class TooltipManager {
   /* -------------------------------------------- */
 
   /**
-   * Start the deactivation process.
-   */
+    * Start the deactivation process.
+    */
   #startDeactivation() {
+    if ( this.#deactivationTimeout ) return;
+
     // Clear any existing activation workflow
-    window.clearTimeout(this.#activationTimeout);
-    this.#pending = this.#activationTimeout = null;
+    this.clearPending();
 
     // Delay deactivation to confirm whether some new element is now pending
-    window.clearTimeout(this.#deactivationTimeout);
     this.#deactivationTimeout = window.setTimeout(() => {
+      this.#deactivationTimeout = null;
       if ( !this.#pending ) this.deactivate();
     }, this.constructor.TOOLTIP_ACTIVATION_MS);
   }
@@ -162,39 +171,47 @@ class TooltipManager {
   /* -------------------------------------------- */
 
   /**
-   * Clear any existing deactivation workflow.
-   */
+    * Clear any existing deactivation workflow.
+    */
   #clearDeactivation() {
     window.clearTimeout(this.#deactivationTimeout);
-    this.#pending = this.#deactivationTimeout = null;
+    this.#deactivationTimeout = null;
   }
 
   /* -------------------------------------------- */
 
   /**
-   * Activate the tooltip for a hovered HTML element which defines a tooltip localization key.
-   * @param {HTMLElement} element     The HTML element being hovered.
-   * @param {object} [options={}]     Additional options which can override tooltip behavior.
-   * @param {string} [options.text]       Explicit tooltip text to display. If this is not provided the tooltip text is
-   *                                      acquired from the elements data-tooltip attribute. This text will be
-   *                                      automatically localized
-   * @param {TooltipManager.TOOLTIP_DIRECTIONS} [options.direction]  An explicit tooltip expansion direction. If this
-   *                                      is not provided the direction is acquired from the data-tooltip-direction
-   *                                      attribute of the element or one of its parents.
-   * @param {string} [options.cssClass]   An optional, space-separated list of CSS classes to apply to the activated
-   *                                      tooltip. If this is not provided, the CSS classes are acquired from the
-   *                                      data-tooltip-class attribute of the element or one of its parents.
-   */
-  activate(element, {text, direction, cssClass}={}) {
+    * Activate the tooltip for a hovered HTML element which defines a tooltip localization key.
+    * @param {HTMLElement} element         The HTML element being hovered.
+    * @param {object} [options={}]         Additional options which can override tooltip behavior.
+    * @param {string} [options.text]       Explicit tooltip text to display. If this is not provided the tooltip text is
+    *                                      acquired from the elements data-tooltip attribute. This text will be
+    *                                      automatically localized
+    * @param {TooltipManager.TOOLTIP_DIRECTIONS} [options.direction]  An explicit tooltip expansion direction. If this
+    *                                      is not provided the direction is acquired from the data-tooltip-direction
+    *                                      attribute of the element or one of its parents.
+    * @param {string} [options.cssClass]   An optional, space-separated list of CSS classes to apply to the activated
+    *                                      tooltip. If this is not provided, the CSS classes are acquired from the
+    *                                      data-tooltip-class attribute of the element or one of its parents.
+    * @param {boolean} [options.locked]    An optional boolean to lock the tooltip after creation. Defaults to false.
+    * @param {HTMLElement} [options.content]  Explicit HTML content to inject into the tooltip rather than using tooltip
+    *                                         text.
+    */
+  activate(element, {text, direction, cssClass, locked=false, content}={}) {
+    if ( text && content ) throw new Error("Cannot provide both text and content options to TooltipManager#activate.");
+    // Deactivate currently active element
+    this.deactivate();
     // Check if the element still exists in the DOM.
     if ( !document.body.contains(element) ) return;
-    this.#clearDeactivation();
-
-    // Mark the element as active
+    // Mark the new element as active
     this.#active = true;
     this.element = element;
     element.setAttribute("aria-describedby", "tooltip");
-    this.tooltip.innerHTML = text || game.i18n.localize(element.dataset.tooltip);
+    if ( content ) {
+      this.tooltip.innerHTML = ""; // Clear existing content.
+      this.tooltip.appendChild(content);
+    }
+    else this.tooltip.innerHTML = text || game.i18n.localize(element.dataset.tooltip);
 
     // Activate display of the tooltip
     this.tooltip.removeAttribute("class");
@@ -206,18 +223,23 @@ class TooltipManager {
     direction ??= element.closest("[data-tooltip-direction]")?.dataset.tooltipDirection;
     if ( !direction ) direction = this._determineDirection();
     this._setAnchor(direction);
+
+    if ( locked || element.dataset.hasOwnProperty("locked") ) this.lockTooltip();
   }
 
   /* -------------------------------------------- */
 
   /**
-   * Deactivate the tooltip from a previously hovered HTML element.
-   */
+    * Deactivate the tooltip from a previously hovered HTML element.
+    */
   deactivate() {
-
     // Deactivate display of the tooltip
     this.#active = false;
     this.tooltip.classList.remove("active");
+
+    // Clear any existing (de)activation workflow
+    this.clearPending();
+    this.#clearDeactivation();
 
     // Update the tooltipped element
     if ( !this.element ) return;
@@ -228,9 +250,9 @@ class TooltipManager {
   /* -------------------------------------------- */
 
   /**
-   * Clear any pending activation workflow.
-   * @internal
-   */
+    * Clear any pending activation workflow.
+    * @internal
+    */
   clearPending() {
     window.clearTimeout(this.#activationTimeout);
     this.#pending = this.#activationTimeout = null;
@@ -239,44 +261,70 @@ class TooltipManager {
   /* -------------------------------------------- */
 
   /**
-   * Handle a request to lock the current tooltip.
-   * @param {MouseEvent} event  The click event.
-   * @protected
-   */
-  _onLockTooltip(event) {
-    // if ( (event.button !== 1) || !this.#active || Tour.tourInProgress ) return;
-    if ( (event.button !== 1) || !this.#active ) return;
-    event.preventDefault();
-    const clone = this.tooltip.cloneNode(true);
+    * Lock the current tooltip.
+    * @returns {HTMLElement}
+    */
+  lockTooltip() {
+    const clone = this.tooltip.cloneNode(false);
+    // Steal the content from the original tooltip rather than cloning it, so that listeners are preserved.
+    while ( this.tooltip.firstChild ) clone.appendChild(this.tooltip.firstChild);
     clone.removeAttribute("id");
-    clone.classList.add("locked-tooltip");
+    clone.classList.add("locked-tooltip", "active");
     document.body.appendChild(clone);
     this.deactivate();
     clone.addEventListener("contextmenu", this._onLockedTooltipDismiss.bind(this));
     this.#locked.elements.add(clone);
-    this.#computeLockedBoundingBox();
+
+    // If the tooltip's contents were injected via setting innerHTML, then immediately requesting the bounding box will
+    // return incorrect values as the browser has not had a chance to reflow yet. For that reason we defer computing the
+    // bounding box until the next frame.
+    requestAnimationFrame(() => this.#computeLockedBoundingBox());
+    return clone;
   }
 
   /* -------------------------------------------- */
 
   /**
-   * Handle dismissing a locked tooltip.
-   * @param {MouseEvent} event  The click event.
-   * @protected
-   */
+    * Handle a request to lock the current tooltip.
+    * @param {MouseEvent} event  The click event.
+    * @protected
+    */
+  _onLockTooltip(event) {
+    if ( (event.button !== 1) || !this.#active) return; // || Tour.tourInProgress ) return;
+    event.preventDefault();
+    this.lockTooltip();
+  }
+
+  /* -------------------------------------------- */
+
+  /**
+    * Handle dismissing a locked tooltip.
+    * @param {MouseEvent} event  The click event.
+    * @protected
+    */
   _onLockedTooltipDismiss(event) {
     event.preventDefault();
     const target = event.currentTarget;
-    this.#locked.elements.delete(target);
-    target.remove();
+    this.dismissLockedTooltip(target);
+  }
+
+  /* -------------------------------------------- */
+
+  /**
+    * Dismiss a given locked tooltip.
+    * @param {HTMLElement} element  The locked tooltip to dismiss.
+    */
+  dismissLockedTooltip(element) {
+    this.#locked.elements.delete(element);
+    element.remove();
     this.#computeLockedBoundingBox();
   }
 
   /* -------------------------------------------- */
 
   /**
-   * Compute the unified bounding box from the set of locked tooltip elements.
-   */
+    * Compute the unified bounding box from the set of locked tooltip elements.
+    */
   #computeLockedBoundingBox() {
     let bb = null;
     for ( const element of this.#locked.elements.values() ) {
@@ -291,21 +339,21 @@ class TooltipManager {
   /* -------------------------------------------- */
 
   /**
-   * Check whether the user is moving away from the locked tooltips and dismiss them if so.
-   * @param {MouseEvent} event  The mouse move event.
-   */
+    * Check whether the user is moving away from the locked tooltips and dismiss them if so.
+    * @param {MouseEvent} event  The mouse move event.
+    */
   #testLockedTooltipProximity(event) {
     if ( !this.#locked.elements.size ) return;
     const {clientX: x, clientY: y} = event;
-    const buffer = this.#locked.boundingBox.clone().pad(this.constructor.LOCKED_TOOLTIP_BUFFER_PX);
-    if ( !buffer.contains(x, y) ) this.dismissLockedTooltips();
+    const buffer = this.#locked.boundingBox?.clone?.().pad(this.constructor.LOCKED_TOOLTIP_BUFFER_PX);
+    if ( buffer && !buffer.contains(x, y) ) this.dismissLockedTooltips();
   }
 
   /* -------------------------------------------- */
 
   /**
-   * Dismiss the set of active locked tooltips.
-   */
+    * Dismiss the set of active locked tooltips.
+    */
   dismissLockedTooltips() {
     for ( const element of this.#locked.elements.values() ) {
       element.remove();
@@ -316,10 +364,38 @@ class TooltipManager {
   /* -------------------------------------------- */
 
   /**
-   * If an explicit tooltip expansion direction was not specified, figure out a valid direction based on the bounds
-   * of the target element and the screen.
-   * @protected
-   */
+    * Create a locked tooltip at the given position.
+    * @param {object} position             A position object with coordinates for where the tooltip should be placed
+    * @param {string} position.top         Explicit top position for the tooltip
+    * @param {string} position.right       Explicit right position for the tooltip
+    * @param {string} position.bottom      Explicit bottom position for the tooltip
+    * @param {string} position.left        Explicit left position for the tooltip
+    * @param {string} text                 Explicit tooltip text or HTML to display.
+    * @param {object} [options={}]         Additional options which can override tooltip behavior.
+    * @param {array} [options.cssClass]    An optional, space-separated list of CSS classes to apply to the activated
+    *                                      tooltip.
+    * @returns {HTMLElement}
+    */
+  createLockedTooltip(position, text, {cssClass}={}) {
+    this.#clearDeactivation();
+    this.tooltip.innerHTML = text;
+    this.tooltip.style.top = position.top || "";
+    this.tooltip.style.right = position.right || "";
+    this.tooltip.style.bottom = position.bottom || "";
+    this.tooltip.style.left = position.left || "";
+
+    const clone = this.lockTooltip();
+    if ( cssClass ) clone.classList.add(...cssClass.split(" "));
+    return clone;
+  }
+
+  /* -------------------------------------------- */
+
+  /**
+    * If an explicit tooltip expansion direction was not specified, figure out a valid direction based on the bounds
+    * of the target element and the screen.
+    * @protected
+    */
   _determineDirection() {
     const pos = this.element.getBoundingClientRect();
     const dirs = this.constructor.TOOLTIP_DIRECTIONS;
@@ -329,11 +405,11 @@ class TooltipManager {
   /* -------------------------------------------- */
 
   /**
-   * Set tooltip position relative to an HTML element using an explicitly provided data-tooltip-direction.
-   * @param {TooltipManager.TOOLTIP_DIRECTIONS} direction  The tooltip expansion direction specified by the element
-   *                                                        or a parent element.
-   * @protected
-   */
+    * Set tooltip position relative to an HTML element using an explicitly provided data-tooltip-direction.
+    * @param {TooltipManager.TOOLTIP_DIRECTIONS} direction  The tooltip expansion direction specified by the element
+    *                                                        or a parent element.
+    * @protected
+    */
   _setAnchor(direction) {
     const directions = this.constructor.TOOLTIP_DIRECTIONS;
     const pad = this.constructor.TOOLTIP_MARGIN_PX;
@@ -372,10 +448,10 @@ class TooltipManager {
   /* -------------------------------------------- */
 
   /**
-   * Apply inline styling rules to the tooltip for positioning and text alignment.
-   * @param {object} [position={}]  An object of positioning data, supporting top, right, bottom, left, and textAlign
-   * @protected
-   */
+    * Apply inline styling rules to the tooltip for positioning and text alignment.
+    * @param {object} [position={}]  An object of positioning data, supporting top, right, bottom, left, and textAlign
+    * @protected
+    */
   _setStyle(position={}) {
     const pad = this.constructor.TOOLTIP_MARGIN_PX;
     position = {top: null, right: null, bottom: null, left: null, textAlign: "left", ...position};
@@ -394,14 +470,16 @@ class TooltipManager {
     // Assign styles
     for ( let k of ["top", "right", "bottom", "left"] ) {
       const v = position[k];
-      style[k] = v ? \`\${v}px\` : null;
+      style[k] = v ? v + "px" : null;
     }
 
-    this.tooltip.classList.remove(...["center", "left", "right"].map(dir => \`text-\${dir}\`));
-    this.tooltip.classList.add(\`text-\${position.textAlign}\`);
+    this.tooltip.classList.remove(...["center", "left", "right"].map(dir => "text-" + dir));
+    this.tooltip.classList.add("text-" + position.textAlign);
   }
 }
+      
 window.tooltip_manager = new TooltipManager();
+console.log("#------>", window.tooltip_manager.tooltip);
 `;
   }
 
