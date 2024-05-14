@@ -388,23 +388,11 @@ class PopoutModule {
     cssFix.appendChild(document.createTextNode(cssFixContent));
     head.appendChild(cssFix);
 
-    // BROKEN(posnet: 2024-08-19): Giving up on tooltips for the moment
-    // I have a branch with a sort of viable solution, but it will be even more
-    // brittle, and I am very hesitant to commit to supporting it.
-    // // COMPAT(posnet: 2022-05-05):
-    // // Last ditch effort to support tooltips. By far the worst hack I've needed to do.
-    // // Basically I have just embedded a copy of the TooltipManager class from the base game directly
-    // // into the popped out window because all other attempts to hack arround it have failed,
-    // // either because it's extensive use of window and document methods, or the fact that it uses
-    // // private js members. If this breaks again, I will most likely just leave it broken.
-    // const tooltipNode = document.createElement("aside");
-    // tooltipNode.id = "tooltip";
-    // tooltipNode.role = "tooltip";
-    // body.appendChild(tooltipNode);
-
-    // const tooltipFix = document.createElement("script");
-    // tooltipFix.appendChild(document.createTextNode(this.TOOLTIP_CODE));
-    // head.append(tooltipFix);
+    // Remove embedding TooltipManager
+    const tooltipNode = document.createElement("aside");
+    tooltipNode.id = "tooltip";
+    tooltipNode.role = "tooltip";
+    body.appendChild(tooltipNode);
 
     html.appendChild(head);
     html.appendChild(body);
@@ -727,7 +715,7 @@ class PopoutModule {
       if (game.release.generation >= 10) {
         const allFonts = FontConfig._collectDefinitions(); // eslint-disable-line no-undef
         const families = new Set();
-        for (const definitions of allFonts) {
+        for (const definitions of Object.values(allFonts)) {
           for (const [family] of Object.entries(definitions)) {
             families.add(family);
           }
@@ -779,66 +767,52 @@ class PopoutModule {
         window.keyboard._handleKeyboardEvent(event, true)
       );
 
-      // COMPAT(posnet: 2022-09-17) v9
-      // eslint-disable-next-line no-undef
-      if (game.release.generation < 10) {
-        // From: TextEditor.activateListeners();
-        // These event listeners don't get migrated because they are attached to a jQuery
-        // selected body. This could be more of an issue in future as anyone doing a delegated
-        // event handler will also fail. But that is bad practice.
-        // The following regex will find examples of delegated event handlers in foundry.js
-        // `on\(("|')[^'"]+("|'), *("|')`
-        const jBody = $(body); // eslint-disable-line no-undef
-        jBody.on(
-          "click",
-          "a.entity-link",
-          window.TextEditor._onClickEntityLink !== undefined
-            ? window.TextEditor._onClickEntityLink
-            : window.TextEditor._onClickContentLink
-        );
-        jBody.on(
-          "dragstart",
-          "a.entity-link",
-          window.TextEditor._onDragEntityLink
-        );
-        jBody.on(
-          "click",
-          "a.inline-roll",
-          window.TextEditor._onClickInlineRoll
-        );
-      } else {
-        // From: TextEditor.activateListeners();
-        // These event listeners don't get migrated because they are attached to a jQuery
-        // selected body. This could be more of an issue in future as anyone doing a delegated
-        // event handler will also fail. But that is bad practice.
-        // The following regex will find examples of delegated event handlers in foundry.js
-        // `on\(("|')[^'"]+("|'), *("|')`
-        const jBody = $(body); // eslint-disable-line no-undef
-        jBody.on(
-          "click",
-          "a.content-link",
-          window.TextEditor._onClickEntityLink !== undefined
-            ? window.TextEditor._onClickEntityLink
-            : window.TextEditor._onClickContentLink
-        );
-        jBody.on(
-          "dragstart",
-          "a.content-link",
-          window.TextEditor._onDragEntityLink !== undefined
-            ? window.TextEditor._onDragEntityLink
-            : window.TextEditor._onDragContentLink
-        );
-        jBody.on(
-          "click",
-          "a.inline-roll",
-          window.TextEditor._onClickInlineRoll
-        );
-      }
+      // Register event listeners in popout window and dispatch custom events to main window
+      const mainWindow = window;
 
-      popout.game = game; // eslint-disable-line no-undef
-      popout.tooltip_manager.tooltip =
-        popout.document.getElementById("tooltip");
-      popout.tooltip_manager.activateEventListeners();
+      popout.document.body.addEventListener("pointerenter", (event) => {
+        const customEvent = new MouseEvent("pointerenter", {
+          bubbles: true,
+          cancelable: true,
+          clientX: event.clientX,
+          clientY: event.clientY,
+          relatedTarget: event.relatedTarget,
+        });
+        mainWindow.document.body.dispatchEvent(customEvent);
+      });
+
+      popout.document.body.addEventListener("pointerleave", (event) => {
+        const customEvent = new MouseEvent("pointerleave", {
+          bubbles: true,
+          cancelable: true,
+          clientX: event.clientX,
+          clientY: event.clientY,
+          relatedTarget: event.relatedTarget,
+        });
+        mainWindow.document.body.dispatchEvent(customEvent);
+      });
+
+      popout.document.body.addEventListener("pointerup", (event) => {
+        const customEvent = new MouseEvent("pointerup", {
+          bubbles: true,
+          cancelable: true,
+          clientX: event.clientX,
+          clientY: event.clientY,
+          relatedTarget: event.relatedTarget,
+        });
+        mainWindow.document.body.dispatchEvent(customEvent);
+      });
+
+      popout.document.body.addEventListener("pointermove", (event) => {
+        const customEvent = new MouseEvent("pointermove", {
+          bubbles: true,
+          cancelable: true,
+          clientX: event.clientX,
+          clientY: event.clientY,
+          relatedTarget: event.relatedTarget,
+        });
+        mainWindow.document.body.dispatchEvent(customEvent);
+      });
 
       this.log("Final node", node, app);
       Hooks.callAll("PopOut:loaded", app, node); // eslint-disable-line no-undef
