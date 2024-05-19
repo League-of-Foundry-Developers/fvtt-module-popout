@@ -7,6 +7,8 @@ class PopoutModule {
     this.MAX_TIMEOUT = 1000; // ms
     // Random id to prevent collision with other modules;
     this.ID = randomID(24); // eslint-disable-line no-undef
+    this.eventDispatcher = undefined;
+    this.lastTooltipDest = undefined;
   }
 
   log(msg, ...args) {
@@ -141,6 +143,84 @@ class PopoutModule {
         }
         return elem;
       }.bind(this);
+
+      const tooltipNode = document.getElementById("tooltip");
+      const outerThis = this;
+
+      game.tooltip.tooltip = new Proxy(tooltipNode, {
+        set(target, property, value) {
+          console.log("TOOLTIP NODE SET", property, value);
+          return Reflect.set(target, property, value);
+        },
+        get(target, property) {
+          console.log("TOOLTIP NODE GET", property);
+          if (outerThis.lastTooltipDest !== undefined) {
+            return Reflect.get(outerThis.lastTooltipDest, property);
+          }
+          const origValue = target[property];
+          if (typeof origValue === "function") {
+            return function (...args) {
+              if (outerThis.lastTooltipDest !== undefined) {
+                return origValue.apple(outerThis.lastTooltipDest, args);
+              }
+              return origValue.apply(target, args);
+            };
+          }
+        },
+        // if (typeof origValue === 'object'){
+        //   let newValue = new Proxy(origValue, {
+        //     set(target, property, value) {
+        //       console.log("TOOLTIP NODE SET PROXY", origValue, property, value);
+        //       return Reflect.set(target, property, value);
+        //     },
+        //     get(target, property) {
+        //       console.log("TOOLTIP NODE GET PROXY", origValue, property);
+        //       const value = target[property];
+        //       if (typeof value === "function") {
+        //         return function (...args) {
+        //           const result = value.apply(target, args);
+        //           if (outerThis.lastTooltipDest != undefined) {
+        //             const nResult = value.apply(outerThis.lastTooltipDest, args);
+        //             console.log("Popped out tooltip call:", nResult);
+        //           }
+        //           return result;
+        //         };
+        //       }
+        //       return value;
+        //     },
+        //   });
+        //   return newValue;
+        // }
+        //     return outerThis.lastTooltipDest[property];
+        //   }
+        //   return origValue;
+        // }
+      });
+
+      this.eventDispatcher = document.createElement("div");
+      this.eventDispatcher.id = `PopOutToolTipProxy-${this.ID}`;
+      document.body.appendChild(this.eventDispatcher);
+
+      // game.tooltip.element = new Proxy(tooltipElement, {
+      //   set(target, property, value) {
+      //     console.log("TOOLTIP ELEM SET", property, value);
+      //     target[property] = value;
+      //     outerThis.syncTooltips();
+      //     return true;
+      //   },
+      //   get(target, property) {
+      //     const value = target[property];
+      //     console.log("TOOLTIP ELEM GET", property);
+      //     if (typeof value === "function") {
+      //       return function (...args) {
+      //         const result = value.apply(target, args);
+      //         outerThis.syncTooltips();
+      //         return result;
+      //       };
+      //     }
+      //     return value;
+      //   },
+      // });
     }
 
     // NOTE(posnet: 2022-03-13): We need to overwrite the behavior of the hasFocus method of
@@ -183,6 +263,32 @@ class PopoutModule {
     const editor = await tinyMCE.init(config);
     editor[0].remove();
     /* eslint-enable no-undef */
+  }
+
+  dispatchEvent(kind, clientX, clientY, target, dest) {
+    console.log("Dispatch event", target, dest, this.eventDispatcher);
+    if (target !== null && this.eventDispatcher !== undefined) {
+      if (target.dataset !== undefined) {
+        // delete existing values;
+        this.lastTooltipDest = dest;
+        if (this.eventDispatcher.dataset !== undefined) {
+          for (const key in this.eventDispatcher.dataset) {
+            delete this.eventDispatcher.dataset[key];
+          }
+        }
+        for (const key in target.dataset) {
+          this.eventDispatcher.dataset[key] = target.dataset[key];
+        }
+        const customEvent = new PointerEvent(kind, {
+          bubbles: true,
+          cancelable: true,
+          clientX: clientX,
+          clientY: clientY,
+          target: target,
+        });
+        this.eventDispatcher.dispatchEvent(customEvent, true);
+      }
+    }
   }
 
   async addPopout(app) {
@@ -772,67 +878,58 @@ class PopoutModule {
       popout.document.body.addEventListener(
         "pointerenter",
         (event) => {
-          const customEvent = new PointerEvent("pointerenter", {
-            bubbles: true,
-            cancelable: true,
-            clientX: event.clientX,
-            clientY: event.clientY,
-            relatedTarget: event.relatedTarget,
-            target: event.target,
-          });
-          console.log("Sending event", customEvent);
-          mainWindow.document.body.dispatchEvent(customEvent);
+          this.dispatchEvent(
+            "pointerenter",
+            event.clientX,
+            event.clientY,
+            event.target,
+            popout.document.getElementById("tooltip")
+          );
         },
         true
       );
 
-      popout.document.body.addEventListener("pointerleave", (event) => {
-        const customEvent = new PointerEvent(
-          "pointerleave",
-          {
-            bubbles: true,
-            cancelable: true,
-            clientX: event.clientX,
-            clientY: event.clientY,
-            relatedTarget: event.relatedTarget,
-            target: event.target,
-          },
-          true
-        );
-        mainWindow.document.body.dispatchEvent(customEvent);
-      });
+      popout.document.body.addEventListener(
+        "pointerleave",
+        (event) => {
+          this.dispatchEvent(
+            "pointerleave",
+            event.clientX,
+            event.clientY,
+            event.target,
+            popout.document.getElementById("tooltip")
+          );
+        },
+        true
+      );
 
-      popout.document.body.addEventListener("pointerup", (event) => {
-        const customEvent = new PointerEvent(
-          "pointerup",
-          {
-            bubbles: true,
-            cancelable: true,
-            clientX: event.clientX,
-            clientY: event.clientY,
-            relatedTarget: event.relatedTarget,
-            target: event.target,
-          },
-          true
-        );
-        mainWindow.document.body.dispatchEvent(customEvent);
-      });
+      popout.document.body.addEventListener(
+        "pointerup",
+        (event) => {
+          this.dispatchEvent(
+            "pointerup",
+            event.clientX,
+            event.clientY,
+            event.target,
+            popout.document.getElementById("tooltip")
+          );
+        },
+        true
+      );
 
-      popout.document.body.addEventListener("pointermove", (event) => {
-        const customEvent = new PointerEvent(
-          "pointermove",
-          {
-            bubbles: true,
-            cancelable: true,
-            clientX: event.clientX,
-            clientY: event.clientY,
-            relatedTarget: event.relatedTarget,
-            target: event.target,
-          },
-          true
-        );
-        mainWindow.document.body.dispatchEvent(customEvent);
-      });
+      popout.document.body.addEventListener(
+        "pointermove",
+        (event) => {
+          this.dispatchEvent(
+            "pointermove",
+            event.clientX,
+            event.clientY,
+            event.target,
+            popout.document.getElementById("tooltip")
+          );
+        },
+        true
+      );
 
       this.log("Final node", node, app);
       Hooks.callAll("PopOut:loaded", app, node); // eslint-disable-line no-undef
