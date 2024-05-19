@@ -131,8 +131,14 @@ class PopoutModule {
     // the same mistake.
     // eslint-disable-next-line no-undef
     if (game.release.generation >= 10) {
+      const outerThis = this;
       const oldGetElementById = document.getElementById.bind(document);
       document.getElementById = function (id) {
+        if (id == 'tooltip') {
+          if (outerThis.lastTooltipDest !== undefined) {
+            return outerThis.lastTooltipDest;
+          }
+        }
         let elem = oldGetElementById(id);
         if (elem === null && this.poppedOut.size > 0) {
           for (const entry of this.poppedOut) {
@@ -144,29 +150,30 @@ class PopoutModule {
         return elem;
       }.bind(this);
 
-      const tooltipNode = document.getElementById("tooltip");
-      const outerThis = this;
+      // const tooltipNode = document.getElementById("tooltip");
+      // const outerThis = this;
 
-      game.tooltip.tooltip = new Proxy(tooltipNode, {
-        set(target, property, value) {
-          console.log("TOOLTIP NODE SET", property, value);
-          return Reflect.set(target, property, value);
-        },
-        get(target, property) {
-          console.log("TOOLTIP NODE GET", property);
-          if (outerThis.lastTooltipDest !== undefined) {
-            return Reflect.get(outerThis.lastTooltipDest, property);
-          }
-          const origValue = target[property];
-          if (typeof origValue === "function") {
-            return function (...args) {
-              if (outerThis.lastTooltipDest !== undefined) {
-                return origValue.apple(outerThis.lastTooltipDest, args);
-              }
-              return origValue.apply(target, args);
-            };
-          }
-        },
+      // game.tooltip.tooltip = new Proxy(tooltipNode, {
+      //   set(target, property, value) {
+      //     console.log("TOOLTIP NODE SET", property, value);
+      //     return Reflect.set(target, property, value);
+      //   },
+      //   get(target, property) {
+      //     console.log("TOOLTIP NODE GET", property);
+      //     if (outerThis.lastTooltipDest !== undefined) {
+      //       return Reflect.get(outerThis.lastTooltipDest, property);
+      //     }
+      //     const origValue = target[property];
+      //     if (typeof origValue === "function") {
+      //       return function (...args) {
+      //         if (outerThis.lastTooltipDest !== undefined) {
+      //           return origValue.apple(outerThis.lastTooltipDest, args);
+      //         }
+      //         return origValue.apply(target, args);
+      //       };
+      //     }
+      //     return Reflect.get(target, property);
+      //   },
         // if (typeof origValue === 'object'){
         //   let newValue = new Proxy(origValue, {
         //     set(target, property, value) {
@@ -195,7 +202,7 @@ class PopoutModule {
         //   }
         //   return origValue;
         // }
-      });
+      // });
 
       this.eventDispatcher = document.createElement("div");
       this.eventDispatcher.id = `PopOutToolTipProxy-${this.ID}`;
@@ -266,7 +273,7 @@ class PopoutModule {
   }
 
   dispatchEvent(kind, clientX, clientY, target, dest) {
-    console.log("Dispatch event", target, dest, this.eventDispatcher);
+    // console.log("Dispatch event", target, dest, this.eventDispatcher);
     if (target !== null && this.eventDispatcher !== undefined) {
       if (target.dataset !== undefined) {
         // delete existing values;
@@ -287,6 +294,9 @@ class PopoutModule {
           target: target,
         });
         this.eventDispatcher.dispatchEvent(customEvent, true);
+        if (dest !== undefined) {
+          game.tooltip.tooltip = dest;
+        }
       }
     }
   }
