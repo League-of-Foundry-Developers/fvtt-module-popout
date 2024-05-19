@@ -661,9 +661,8 @@ class PopoutModule {
           Hooks.callAll("PopOut:close", app, node); // eslint-disable-line no-undef
           await app.close();
         }
-        await popout.close();
+        popout.close();
       }
-      event.returnValue = true;
     });
 
     // -------------------- Move element to window --------------------
@@ -770,47 +769,68 @@ class PopoutModule {
       // Register event listeners in popout window and dispatch custom events to main window
       const mainWindow = window;
 
-      popout.document.body.addEventListener("pointerenter", (event) => {
-        const customEvent = new MouseEvent("pointerenter", {
-          bubbles: true,
-          cancelable: true,
-          clientX: event.clientX,
-          clientY: event.clientY,
-          relatedTarget: event.relatedTarget,
-        });
-        mainWindow.document.body.dispatchEvent(customEvent);
-      });
+      popout.document.body.addEventListener(
+        "pointerenter",
+        (event) => {
+          const customEvent = new PointerEvent("pointerenter", {
+            bubbles: true,
+            cancelable: true,
+            clientX: event.clientX,
+            clientY: event.clientY,
+            relatedTarget: event.relatedTarget,
+            target: event.target,
+          });
+          console.log("Sending event", customEvent);
+          mainWindow.document.body.dispatchEvent(customEvent);
+        },
+        true
+      );
 
       popout.document.body.addEventListener("pointerleave", (event) => {
-        const customEvent = new MouseEvent("pointerleave", {
-          bubbles: true,
-          cancelable: true,
-          clientX: event.clientX,
-          clientY: event.clientY,
-          relatedTarget: event.relatedTarget,
-        });
+        const customEvent = new PointerEvent(
+          "pointerleave",
+          {
+            bubbles: true,
+            cancelable: true,
+            clientX: event.clientX,
+            clientY: event.clientY,
+            relatedTarget: event.relatedTarget,
+            target: event.target,
+          },
+          true
+        );
         mainWindow.document.body.dispatchEvent(customEvent);
       });
 
       popout.document.body.addEventListener("pointerup", (event) => {
-        const customEvent = new MouseEvent("pointerup", {
-          bubbles: true,
-          cancelable: true,
-          clientX: event.clientX,
-          clientY: event.clientY,
-          relatedTarget: event.relatedTarget,
-        });
+        const customEvent = new PointerEvent(
+          "pointerup",
+          {
+            bubbles: true,
+            cancelable: true,
+            clientX: event.clientX,
+            clientY: event.clientY,
+            relatedTarget: event.relatedTarget,
+            target: event.target,
+          },
+          true
+        );
         mainWindow.document.body.dispatchEvent(customEvent);
       });
 
       popout.document.body.addEventListener("pointermove", (event) => {
-        const customEvent = new MouseEvent("pointermove", {
-          bubbles: true,
-          cancelable: true,
-          clientX: event.clientX,
-          clientY: event.clientY,
-          relatedTarget: event.relatedTarget,
-        });
+        const customEvent = new PointerEvent(
+          "pointermove",
+          {
+            bubbles: true,
+            cancelable: true,
+            clientX: event.clientX,
+            clientY: event.clientY,
+            relatedTarget: event.relatedTarget,
+            target: event.target,
+          },
+          true
+        );
         mainWindow.document.body.dispatchEvent(customEvent);
       });
 
