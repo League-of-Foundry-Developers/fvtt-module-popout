@@ -134,11 +134,11 @@ class PopoutModule {
       const outerThis = this;
       const oldGetElementById = document.getElementById.bind(document);
       document.getElementById = function (id) {
-        if (id == 'tooltip') {
-          if (outerThis.lastTooltipDest !== undefined) {
-            return outerThis.lastTooltipDest;
-          }
-        }
+        // if (id == 'tooltip') {
+        //   if (outerThis.lastTooltipDest !== undefined) {
+        //     return outerThis.lastTooltipDest;
+        //   }
+        // }
         let elem = oldGetElementById(id);
         if (elem === null && this.poppedOut.size > 0) {
           for (const entry of this.poppedOut) {
@@ -150,84 +150,10 @@ class PopoutModule {
         return elem;
       }.bind(this);
 
-      // const tooltipNode = document.getElementById("tooltip");
-      // const outerThis = this;
-
-      // game.tooltip.tooltip = new Proxy(tooltipNode, {
-      //   set(target, property, value) {
-      //     console.log("TOOLTIP NODE SET", property, value);
-      //     return Reflect.set(target, property, value);
-      //   },
-      //   get(target, property) {
-      //     console.log("TOOLTIP NODE GET", property);
-      //     if (outerThis.lastTooltipDest !== undefined) {
-      //       return Reflect.get(outerThis.lastTooltipDest, property);
-      //     }
-      //     const origValue = target[property];
-      //     if (typeof origValue === "function") {
-      //       return function (...args) {
-      //         if (outerThis.lastTooltipDest !== undefined) {
-      //           return origValue.apple(outerThis.lastTooltipDest, args);
-      //         }
-      //         return origValue.apply(target, args);
-      //       };
-      //     }
-      //     return Reflect.get(target, property);
-      //   },
-        // if (typeof origValue === 'object'){
-        //   let newValue = new Proxy(origValue, {
-        //     set(target, property, value) {
-        //       console.log("TOOLTIP NODE SET PROXY", origValue, property, value);
-        //       return Reflect.set(target, property, value);
-        //     },
-        //     get(target, property) {
-        //       console.log("TOOLTIP NODE GET PROXY", origValue, property);
-        //       const value = target[property];
-        //       if (typeof value === "function") {
-        //         return function (...args) {
-        //           const result = value.apply(target, args);
-        //           if (outerThis.lastTooltipDest != undefined) {
-        //             const nResult = value.apply(outerThis.lastTooltipDest, args);
-        //             console.log("Popped out tooltip call:", nResult);
-        //           }
-        //           return result;
-        //         };
-        //       }
-        //       return value;
-        //     },
-        //   });
-        //   return newValue;
-        // }
-        //     return outerThis.lastTooltipDest[property];
-        //   }
-        //   return origValue;
-        // }
-      // });
 
       this.eventDispatcher = document.createElement("div");
       this.eventDispatcher.id = `PopOutToolTipProxy-${this.ID}`;
       document.body.appendChild(this.eventDispatcher);
-
-      // game.tooltip.element = new Proxy(tooltipElement, {
-      //   set(target, property, value) {
-      //     console.log("TOOLTIP ELEM SET", property, value);
-      //     target[property] = value;
-      //     outerThis.syncTooltips();
-      //     return true;
-      //   },
-      //   get(target, property) {
-      //     const value = target[property];
-      //     console.log("TOOLTIP ELEM GET", property);
-      //     if (typeof value === "function") {
-      //       return function (...args) {
-      //         const result = value.apply(target, args);
-      //         outerThis.syncTooltips();
-      //         return result;
-      //       };
-      //     }
-      //     return value;
-      //   },
-      // });
     }
 
     // NOTE(posnet: 2022-03-13): We need to overwrite the behavior of the hasFocus method of
@@ -293,7 +219,7 @@ class PopoutModule {
           clientY: clientY,
           target: target,
         });
-        this.eventDispatcher.dispatchEvent(customEvent, true);
+        // this.eventDispatcher.dispatchEvent(customEvent, true);
         if (dest !== undefined) {
           game.tooltip.tooltip = dest;
         }
@@ -940,6 +866,9 @@ class PopoutModule {
         },
         true
       );
+
+      popout.tooltip = new popout._rootWindow.game.tooltip.constructor();
+      popout.tooltip.activateEventListeners();
 
       this.log("Final node", node, app);
       Hooks.callAll("PopOut:loaded", app, node); // eslint-disable-line no-undef
