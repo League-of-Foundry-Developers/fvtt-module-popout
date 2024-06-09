@@ -134,11 +134,11 @@ class PopoutModule {
       const outerThis = this;
       const oldGetElementById = document.getElementById.bind(document);
       document.getElementById = function (id) {
-        // if (id == 'tooltip') {
-        //   if (outerThis.lastTooltipDest !== undefined) {
-        //     return outerThis.lastTooltipDest;
-        //   }
-        // }
+        if (id == "tooltip") {
+          if (outerThis.lastTooltipDest !== undefined) {
+            return outerThis.lastTooltipDest;
+          }
+        }
         let elem = oldGetElementById(id);
         if (elem === null && this.poppedOut.size > 0) {
           for (const entry of this.poppedOut) {
@@ -149,7 +149,6 @@ class PopoutModule {
         }
         return elem;
       }.bind(this);
-
 
       this.eventDispatcher = document.createElement("div");
       this.eventDispatcher.id = `PopOutToolTipProxy-${this.ID}`;
@@ -199,7 +198,7 @@ class PopoutModule {
   }
 
   dispatchEvent(kind, clientX, clientY, target, dest) {
-    // console.log("Dispatch event", target, dest, this.eventDispatcher);
+    console.log("Dispatch event", target, dest, this.eventDispatcher);
     if (target !== null && this.eventDispatcher !== undefined) {
       if (target.dataset !== undefined) {
         // delete existing values;
@@ -219,7 +218,7 @@ class PopoutModule {
           clientY: clientY,
           target: target,
         });
-        // this.eventDispatcher.dispatchEvent(customEvent, true);
+        this.eventDispatcher.dispatchEvent(customEvent);
         if (dest !== undefined) {
           game.tooltip.tooltip = dest;
         }
