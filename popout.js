@@ -6,14 +6,28 @@ class PopoutModule {
     this.TIMEOUT_INTERVAL = 50; // ms
     this.MAX_TIMEOUT = 1000; // ms
     // Random id to prevent collision with other modules;
-    this.ID = randomID(24); // eslint-disable-line no-undef
+    if (game.release.generation >= 12) {
+      this.ID = foundry.utils.randomID(24); // eslint-disable-line no-undef
+    } else {
+      this.ID = randomID(24); // eslint-disable-line no-undef
+    }
     this.eventDispatcher = undefined;
     this.lastTooltipDest = undefined;
+
+    // apply a red box to the tooltip to make it easier to debug.
+    // and force it to be visible
+    document.getElementById("tooltip").style.border = "1px solid red";
+    document.getElementById("tooltip").style.opacity = "100%";
+    document.getElementById("tooltip").style.display = "visible";
+
+    window.ID = 'MAIN WINDOW';
+
   }
 
   log(msg, ...args) {
     // eslint-disable-next-line no-undef
-    if (game && game.settings.get("popout", "verboseLogs")) {
+    // NO CHECKIN
+    if (game || game.settings.get("popout", "verboseLogs")) {
       const color = "background: #6699ff; color: #000; font-size: larger;";
       console.debug(`%c PopoutModule: ${msg}`, color, ...args);
     }
@@ -198,7 +212,9 @@ class PopoutModule {
   }
 
   dispatchEvent(kind, clientX, clientY, target, dest) {
-    console.log("Dispatch event", target, dest, this.eventDispatcher);
+    if (target && target.dataset && target.dataset.tooltip) {
+      this.log("Dispatch event", target, dest, this.eventDispatcher);
+    }
     if (target !== null && this.eventDispatcher !== undefined) {
       if (target.dataset !== undefined) {
         // delete existing values;
@@ -643,7 +659,6 @@ class PopoutModule {
       if (this.poppedOut.has(appId)) {
         await popout.close();
       }
-      event.returnValue = true;
     });
 
     popout.addEventListener("unload", async (event) => {
@@ -744,6 +759,7 @@ class PopoutModule {
     // We wait longer than just the DOMContentLoaded
     // because of how the document is constructed manually.
     popout.addEventListener("load", async (event) => {
+      popout.ID = 'POPOUT';
       if (popout.screenX < 0 || popout.screenY < 0) {
         // Fallback in case for some reason the popout out window is not
         // on the visible screen. May not work or be blocked by popout blockers,
