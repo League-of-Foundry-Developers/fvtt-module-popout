@@ -1,0 +1,12 @@
+{
+    "POPOUT.PopOut": "PopOut!",
+    "POPOUT.PopIn": "PopIn!",
+    "POPOUT.showButton": "Mostrar Botão do PopOut!",
+    "POPOUT.iconOnly": "Apenas Ícone",
+    "POPOUT.useWindows": "Transforma fichas em janelas.",
+    "POPOUT.useWindowsHint": "Force a ficha destacada a ser uma janela com decorações mínimas. Caso contrário, usa o padrão do seu navegador (provavelmente uma nova guia)",
+    "POPOUT.boundingBox": "Modo de Compatibilidade de Caixa Delimitadora",
+    "POPOUT.boundingBoxHint": "Permite um algoritmo mais complexo para calcular o tamanho da janela. Isso é necessário quando as fichas de personagem têm designs complicados que podem ultrapassar sua caixa delimitadora regular. Ativar esta opção pode impactar negativamente o desempenho.",
+    "POPOUT.electronWarning": "PopOut! não funciona com o aplicativo do FoundryVTT. Abra seu jogo a partir de um navegador.",
+    "POPOUT.failureWarning": "Não é possível abrir a janela do PopOut!. Verifique as configurações/permissões do seu site. Clique em <i class='fas fa-info-circle'></i> à esquerda do URL do site."
+}
