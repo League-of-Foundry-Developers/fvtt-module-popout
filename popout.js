@@ -6,486 +6,28 @@ class PopoutModule {
     this.TIMEOUT_INTERVAL = 50; // ms
     this.MAX_TIMEOUT = 1000; // ms
     // Random id to prevent collision with other modules;
-    this.ID = randomID(24); // eslint-disable-line no-undef
-
-    this.TOOLTIP_CODE = `
-class TooltipManager {
-
-  /**
-    * A cached reference to the global tooltip element
-    * @type {HTMLElement}
-    */
-  tooltip = document.getElementById("tooltip");
-
-  /**
-    * A reference to the HTML element which is currently tool-tipped, if any.
-    * @type {HTMLElement|null}
-    */
-  element = null;
-
-  /**
-    * An amount of margin which is used to offset tooltips from their anchored element.
-    * @type {number}
-    */
-  static TOOLTIP_MARGIN_PX = 5;
-
-  /**
-    * The number of milliseconds delay which activates a tooltip on a "long hover".
-    * @type {number}
-    */
-  static TOOLTIP_ACTIVATION_MS = 500;
-
-  /**
-    * The directions in which a tooltip can extend, relative to its tool-tipped element.
-    * @enum {string}
-    */
-  static TOOLTIP_DIRECTIONS = {
-    UP: "UP",
-    DOWN: "DOWN",
-    LEFT: "LEFT",
-    RIGHT: "RIGHT",
-    CENTER: "CENTER"
-  };
-
-  /**
-    * The number of pixels buffer around a locked tooltip zone before they should be dismissed.
-    * @type {number}
-    */
-  static LOCKED_TOOLTIP_BUFFER_PX = 50;
-
-  /**
-    * Is the tooltip currently active?
-    * @type {boolean}
-    */
-  #active = false;
-
-  /**
-    * A reference to a window timeout function when an element is activated.
-    */
-  #activationTimeout;
-
-  /**
-    * A reference to a window timeout function when an element is deactivated.
-    */
-  #deactivationTimeout;
-
-  /**
-    * An element which is pending tooltip activation if hover is sustained
-    * @type {HTMLElement|null}
-    */
-  #pending;
-
-  /**
-    * Maintain state about active locked tooltips in order to perform appropriate automatic dismissal.
-    * @type {{elements: Set<HTMLElement>, boundingBox: Rectangle}}
-    */
-  #locked = {
-    elements: new Set(),
-    boundingBox: {}
-  };
-
-  /* -------------------------------------------- */
-
-  /**
-    * Activate interactivity by listening for hover events on HTML elements which have a data-tooltip defined.
-    */
-  activateEventListeners() {
-    console.log(document.body.NAME);
-    document.body.addEventListener("pointerenter", this.#onActivate.bind(this), true);
-    document.body.addEventListener("pointerleave", this.#onDeactivate.bind(this), true);
-    document.body.addEventListener("pointerup", this._onLockTooltip.bind(this), true);
-    document.body.addEventListener("pointermove", this.#testLockedTooltipProximity.bind(this), {
-      capture: true,
-      passive: true
-    });
-  }
-
-  /* -------------------------------------------- */
-
-  /**
-    * Handle hover events which activate a tooltipped element.
-    * @param {PointerEvent} event    The initiating pointerenter event
-    */
-  #onActivate(event) {
-    // if ( Tour.tourInProgress ) return; // Don't activate tooltips during a tour
-    const element = event.target;
-    if ( element.closest(".editor-content.ProseMirror") ) return; // Don't activate tooltips inside text editors.
-    if ( !element.dataset.tooltip ) {
-      // Check if the element has moved out from underneath the cursor and pointerenter has fired on a non-child of the
-      // tooltipped element.
-      if ( this.#active && !this.element.contains(element) ) this.#startDeactivation();
-      return;
+    if (game.release.generation >= 12) {
+      this.ID = foundry.utils.randomID(24); // eslint-disable-line no-undef
+    } else {
+      this.ID = randomID(24); // eslint-disable-line no-undef
     }
+    this.eventDispatcher = undefined;
+    this.lastTooltipDest = undefined;
 
-    // Don't activate tooltips if the element contains an active context menu or is in a matching link tooltip
-    if ( element.matches("#context-menu") || element.querySelector("#context-menu") ) return;
+    // apply a red box to the tooltip to make it easier to debug.
+    // and force it to be visible
+    document.getElementById("tooltip").style.border = "1px solid red";
+    document.getElementById("tooltip").style.opacity = "100%";
+    document.getElementById("tooltip").style.display = "visible";
 
-    // If the tooltip is currently active, we can move it to a new element immediately
-    if ( this.#active ) {
-      this.activate(element);
-      return;
-    }
+    window.ID = 'MAIN WINDOW';
 
-    // Clear any existing deactivation workflow
-    this.#clearDeactivation();
-
-    // Delay activation to determine user intent
-    this.#pending = element;
-    this.#activationTimeout = window.setTimeout(() => {
-      this.#activationTimeout = null;
-      if ( this.#pending ) this.activate(this.#pending);
-    }, this.constructor.TOOLTIP_ACTIVATION_MS);
-  }
-
-  /* -------------------------------------------- */
-
-  /**
-    * Handle hover events which deactivate a tooltipped element.
-    * @param {PointerEvent} event    The initiating pointerleave event
-    */
-  #onDeactivate(event) {
-    if ( event.target !== (this.element ?? this.#pending) ) return;
-    const parent = event.target.parentElement.closest("[data-tooltip]");
-    if ( parent ) this.activate(parent);
-    else this.#startDeactivation();
-  }
-
-  /* -------------------------------------------- */
-
-  /**
-    * Start the deactivation process.
-    */
-  #startDeactivation() {
-    if ( this.#deactivationTimeout ) return;
-
-    // Clear any existing activation workflow
-    this.clearPending();
-
-    // Delay deactivation to confirm whether some new element is now pending
-    this.#deactivationTimeout = window.setTimeout(() => {
-      this.#deactivationTimeout = null;
-      if ( !this.#pending ) this.deactivate();
-    }, this.constructor.TOOLTIP_ACTIVATION_MS);
-  }
-
-  /* -------------------------------------------- */
-
-  /**
-    * Clear any existing deactivation workflow.
-    */
-  #clearDeactivation() {
-    window.clearTimeout(this.#deactivationTimeout);
-    this.#deactivationTimeout = null;
-  }
-
-  /* -------------------------------------------- */
-
-  /**
-    * Activate the tooltip for a hovered HTML element which defines a tooltip localization key.
-    * @param {HTMLElement} element         The HTML element being hovered.
-    * @param {object} [options={}]         Additional options which can override tooltip behavior.
-    * @param {string} [options.text]       Explicit tooltip text to display. If this is not provided the tooltip text is
-    *                                      acquired from the elements data-tooltip attribute. This text will be
-    *                                      automatically localized
-    * @param {TooltipManager.TOOLTIP_DIRECTIONS} [options.direction]  An explicit tooltip expansion direction. If this
-    *                                      is not provided the direction is acquired from the data-tooltip-direction
-    *                                      attribute of the element or one of its parents.
-    * @param {string} [options.cssClass]   An optional, space-separated list of CSS classes to apply to the activated
-    *                                      tooltip. If this is not provided, the CSS classes are acquired from the
-    *                                      data-tooltip-class attribute of the element or one of its parents.
-    * @param {boolean} [options.locked]    An optional boolean to lock the tooltip after creation. Defaults to false.
-    * @param {HTMLElement} [options.content]  Explicit HTML content to inject into the tooltip rather than using tooltip
-    *                                         text.
-    */
-  activate(element, {text, direction, cssClass, locked=false, content}={}) {
-    if ( text && content ) throw new Error("Cannot provide both text and content options to TooltipManager#activate.");
-    // Deactivate currently active element
-    this.deactivate();
-    // Check if the element still exists in the DOM.
-    if ( !document.body.contains(element) ) return;
-    // Mark the new element as active
-    this.#active = true;
-    this.element = element;
-    element.setAttribute("aria-describedby", "tooltip");
-    if ( content ) {
-      this.tooltip.innerHTML = ""; // Clear existing content.
-      this.tooltip.appendChild(content);
-    }
-    else this.tooltip.innerHTML = text || game.i18n.localize(element.dataset.tooltip);
-
-    // Activate display of the tooltip
-    this.tooltip.removeAttribute("class");
-    this.tooltip.classList.add("active");
-    cssClass ??= element.closest("[data-tooltip-class]")?.dataset.tooltipClass;
-    if ( cssClass ) this.tooltip.classList.add(...cssClass.split(" "));
-
-    // Set tooltip position
-    direction ??= element.closest("[data-tooltip-direction]")?.dataset.tooltipDirection;
-    if ( !direction ) direction = this._determineDirection();
-    this._setAnchor(direction);
-
-    if ( locked || element.dataset.hasOwnProperty("locked") ) this.lockTooltip();
-  }
-
-  /* -------------------------------------------- */
-
-  /**
-    * Deactivate the tooltip from a previously hovered HTML element.
-    */
-  deactivate() {
-    // Deactivate display of the tooltip
-    this.#active = false;
-    this.tooltip.classList.remove("active");
-
-    // Clear any existing (de)activation workflow
-    this.clearPending();
-    this.#clearDeactivation();
-
-    // Update the tooltipped element
-    if ( !this.element ) return;
-    this.element.removeAttribute("aria-describedby");
-    this.element = null;
-  }
-
-  /* -------------------------------------------- */
-
-  /**
-    * Clear any pending activation workflow.
-    * @internal
-    */
-  clearPending() {
-    window.clearTimeout(this.#activationTimeout);
-    this.#pending = this.#activationTimeout = null;
-  }
-
-  /* -------------------------------------------- */
-
-  /**
-    * Lock the current tooltip.
-    * @returns {HTMLElement}
-    */
-  lockTooltip() {
-    const clone = this.tooltip.cloneNode(false);
-    // Steal the content from the original tooltip rather than cloning it, so that listeners are preserved.
-    while ( this.tooltip.firstChild ) clone.appendChild(this.tooltip.firstChild);
-    clone.removeAttribute("id");
-    clone.classList.add("locked-tooltip", "active");
-    document.body.appendChild(clone);
-    this.deactivate();
-    clone.addEventListener("contextmenu", this._onLockedTooltipDismiss.bind(this));
-    this.#locked.elements.add(clone);
-
-    // If the tooltip's contents were injected via setting innerHTML, then immediately requesting the bounding box will
-    // return incorrect values as the browser has not had a chance to reflow yet. For that reason we defer computing the
-    // bounding box until the next frame.
-    requestAnimationFrame(() => this.#computeLockedBoundingBox());
-    return clone;
-  }
-
-  /* -------------------------------------------- */
-
-  /**
-    * Handle a request to lock the current tooltip.
-    * @param {MouseEvent} event  The click event.
-    * @protected
-    */
-  _onLockTooltip(event) {
-    if ( (event.button !== 1) || !this.#active) return; // || Tour.tourInProgress ) return;
-    event.preventDefault();
-    this.lockTooltip();
-  }
-
-  /* -------------------------------------------- */
-
-  /**
-    * Handle dismissing a locked tooltip.
-    * @param {MouseEvent} event  The click event.
-    * @protected
-    */
-  _onLockedTooltipDismiss(event) {
-    event.preventDefault();
-    const target = event.currentTarget;
-    this.dismissLockedTooltip(target);
-  }
-
-  /* -------------------------------------------- */
-
-  /**
-    * Dismiss a given locked tooltip.
-    * @param {HTMLElement} element  The locked tooltip to dismiss.
-    */
-  dismissLockedTooltip(element) {
-    this.#locked.elements.delete(element);
-    element.remove();
-    this.#computeLockedBoundingBox();
-  }
-
-  /* -------------------------------------------- */
-
-  /**
-    * Compute the unified bounding box from the set of locked tooltip elements.
-    */
-  #computeLockedBoundingBox() {
-    let bb = null;
-    for ( const element of this.#locked.elements.values() ) {
-      const {x, y, width, height} = element.getBoundingClientRect();
-      const rect = new PIXI.Rectangle(x, y, width, height);
-      if ( bb ) bb.enlarge(rect);
-      else bb = rect;
-    }
-    this.#locked.boundingBox = bb;
-  }
-
-  /* -------------------------------------------- */
-
-  /**
-    * Check whether the user is moving away from the locked tooltips and dismiss them if so.
-    * @param {MouseEvent} event  The mouse move event.
-    */
-  #testLockedTooltipProximity(event) {
-    if ( !this.#locked.elements.size ) return;
-    const {clientX: x, clientY: y} = event;
-    const buffer = this.#locked.boundingBox?.clone?.().pad(this.constructor.LOCKED_TOOLTIP_BUFFER_PX);
-    if ( buffer && !buffer.contains(x, y) ) this.dismissLockedTooltips();
-  }
-
-  /* -------------------------------------------- */
-
-  /**
-    * Dismiss the set of active locked tooltips.
-    */
-  dismissLockedTooltips() {
-    for ( const element of this.#locked.elements.values() ) {
-      element.remove();
-    }
-    this.#locked.elements = new Set();
-  }
-
-  /* -------------------------------------------- */
-
-  /**
-    * Create a locked tooltip at the given position.
-    * @param {object} position             A position object with coordinates for where the tooltip should be placed
-    * @param {string} position.top         Explicit top position for the tooltip
-    * @param {string} position.right       Explicit right position for the tooltip
-    * @param {string} position.bottom      Explicit bottom position for the tooltip
-    * @param {string} position.left        Explicit left position for the tooltip
-    * @param {string} text                 Explicit tooltip text or HTML to display.
-    * @param {object} [options={}]         Additional options which can override tooltip behavior.
-    * @param {array} [options.cssClass]    An optional, space-separated list of CSS classes to apply to the activated
-    *                                      tooltip.
-    * @returns {HTMLElement}
-    */
-  createLockedTooltip(position, text, {cssClass}={}) {
-    this.#clearDeactivation();
-    this.tooltip.innerHTML = text;
-    this.tooltip.style.top = position.top || "";
-    this.tooltip.style.right = position.right || "";
-    this.tooltip.style.bottom = position.bottom || "";
-    this.tooltip.style.left = position.left || "";
-
-    const clone = this.lockTooltip();
-    if ( cssClass ) clone.classList.add(...cssClass.split(" "));
-    return clone;
-  }
-
-  /* -------------------------------------------- */
-
-  /**
-    * If an explicit tooltip expansion direction was not specified, figure out a valid direction based on the bounds
-    * of the target element and the screen.
-    * @protected
-    */
-  _determineDirection() {
-    const pos = this.element.getBoundingClientRect();
-    const dirs = this.constructor.TOOLTIP_DIRECTIONS;
-    return dirs[pos.y + this.tooltip.offsetHeight > window.innerHeight ? "UP" : "DOWN"];
-  }
-
-  /* -------------------------------------------- */
-
-  /**
-    * Set tooltip position relative to an HTML element using an explicitly provided data-tooltip-direction.
-    * @param {TooltipManager.TOOLTIP_DIRECTIONS} direction  The tooltip expansion direction specified by the element
-    *                                                        or a parent element.
-    * @protected
-    */
-  _setAnchor(direction) {
-    const directions = this.constructor.TOOLTIP_DIRECTIONS;
-    const pad = this.constructor.TOOLTIP_MARGIN_PX;
-    const pos = this.element.getBoundingClientRect();
-    let style = {};
-    switch ( direction ) {
-      case directions.DOWN:
-        style.textAlign = "center";
-        style.left = pos.left - (this.tooltip.offsetWidth / 2) + (pos.width / 2);
-        style.top = pos.bottom + pad;
-        break;
-      case directions.LEFT:
-        style.textAlign = "left";
-        style.right = window.innerWidth - pos.left + pad;
-        style.top = pos.top + (pos.height / 2) - (this.tooltip.offsetHeight / 2);
-        break;
-      case directions.RIGHT:
-        style.textAlign = "right";
-        style.left = pos.right + pad;
-        style.top = pos.top + (pos.height / 2) - (this.tooltip.offsetHeight / 2);
-        break;
-      case directions.UP:
-        style.textAlign = "center";
-        style.left = pos.left - (this.tooltip.offsetWidth / 2) + (pos.width / 2);
-        style.bottom = window.innerHeight - pos.top + pad;
-        break;
-      case directions.CENTER:
-        style.textAlign = "center";
-        style.left = pos.left - (this.tooltip.offsetWidth / 2) + (pos.width / 2);
-        style.top = pos.top + (pos.height / 2) - (this.tooltip.offsetHeight / 2);
-        break;
-    }
-    return this._setStyle(style);
-  }
-
-  /* -------------------------------------------- */
-
-  /**
-    * Apply inline styling rules to the tooltip for positioning and text alignment.
-    * @param {object} [position={}]  An object of positioning data, supporting top, right, bottom, left, and textAlign
-    * @protected
-    */
-  _setStyle(position={}) {
-    const pad = this.constructor.TOOLTIP_MARGIN_PX;
-    position = {top: null, right: null, bottom: null, left: null, textAlign: "left", ...position};
-    const style = this.tooltip.style;
-
-    // Left or Right
-    const maxW = window.innerWidth - this.tooltip.offsetWidth;
-    if ( position.left ) position.left = Math.clamped(position.left, pad, maxW - pad);
-    if ( position.right ) position.right = Math.clamped(position.right, pad, maxW - pad);
-
-    // Top or Bottom
-    const maxH = window.innerHeight - this.tooltip.offsetHeight;
-    if ( position.top ) position.top = Math.clamped(position.top, pad, maxH - pad);
-    if ( position.bottom ) position.bottom = Math.clamped(position.bottom, pad, maxH - pad);
-
-    // Assign styles
-    for ( let k of ["top", "right", "bottom", "left"] ) {
-      const v = position[k];
-      style[k] = v ? v + "px" : null;
-    }
-
-    this.tooltip.classList.remove(...["center", "left", "right"].map(dir => "text-" + dir));
-    this.tooltip.classList.add("text-" + position.textAlign);
-  }
-}
-      
-window.tooltip_manager = new TooltipManager();
-console.log("#------>", window.tooltip_manager.tooltip);
-`;
   }
 
   log(msg, ...args) {
     // eslint-disable-next-line no-undef
-    if (game && game.settings.get("popout", "verboseLogs")) {
+    // NO CHECKIN
+    if (game || game.settings.get("popout", "verboseLogs")) {
       const color = "background: #6699ff; color: #000; font-size: larger;";
       console.debug(`%c PopoutModule: ${msg}`, color, ...args);
     }
@@ -603,8 +145,14 @@ console.log("#------>", window.tooltip_manager.tooltip);
     // the same mistake.
     // eslint-disable-next-line no-undef
     if (game.release.generation >= 10) {
+      const outerThis = this;
       const oldGetElementById = document.getElementById.bind(document);
       document.getElementById = function (id) {
+        if (id == "tooltip") {
+          if (outerThis.lastTooltipDest !== undefined) {
+            return outerThis.lastTooltipDest;
+          }
+        }
         let elem = oldGetElementById(id);
         if (elem === null && this.poppedOut.size > 0) {
           for (const entry of this.poppedOut) {
@@ -615,6 +163,10 @@ console.log("#------>", window.tooltip_manager.tooltip);
         }
         return elem;
       }.bind(this);
+
+      this.eventDispatcher = document.createElement("div");
+      this.eventDispatcher.id = `PopOutToolTipProxy-${this.ID}`;
+      document.body.appendChild(this.eventDispatcher);
     }
 
     // NOTE(posnet: 2022-03-13): We need to overwrite the behavior of the hasFocus method of
@@ -657,6 +209,37 @@ console.log("#------>", window.tooltip_manager.tooltip);
     const editor = await tinyMCE.init(config);
     editor[0].remove();
     /* eslint-enable no-undef */
+  }
+
+  dispatchEvent(kind, clientX, clientY, target, dest) {
+    if (target && target.dataset && target.dataset.tooltip) {
+      this.log("Dispatch event", target, dest, this.eventDispatcher);
+    }
+    if (target !== null && this.eventDispatcher !== undefined) {
+      if (target.dataset !== undefined) {
+        // delete existing values;
+        this.lastTooltipDest = dest;
+        if (this.eventDispatcher.dataset !== undefined) {
+          for (const key in this.eventDispatcher.dataset) {
+            delete this.eventDispatcher.dataset[key];
+          }
+        }
+        for (const key in target.dataset) {
+          this.eventDispatcher.dataset[key] = target.dataset[key];
+        }
+        const customEvent = new PointerEvent(kind, {
+          bubbles: true,
+          cancelable: true,
+          clientX: clientX,
+          clientY: clientY,
+          target: target,
+        });
+        this.eventDispatcher.dispatchEvent(customEvent);
+        if (dest !== undefined) {
+          game.tooltip.tooltip = dest;
+        }
+      }
+    }
   }
 
   async addPopout(app) {
@@ -862,20 +445,11 @@ console.log("#------>", window.tooltip_manager.tooltip);
     cssFix.appendChild(document.createTextNode(cssFixContent));
     head.appendChild(cssFix);
 
-    // COMPAT(posnet: 2022-05-05):
-    // Last ditch effort to support tooltips. By far the worst hack I've needed to do.
-    // Basically I have just embedded a copy of the TooltipManager class from the base game directly
-    // into the popped out window because all other attempts to hack arround it have failed,
-    // either because it's extensive use of window and document methods, or the fact that it uses
-    // private js members. If this breaks again, I will most likely just leave it broken.
+    // Remove embedding TooltipManager
     const tooltipNode = document.createElement("aside");
     tooltipNode.id = "tooltip";
     tooltipNode.role = "tooltip";
     body.appendChild(tooltipNode);
-
-    const tooltipFix = document.createElement("script");
-    tooltipFix.appendChild(document.createTextNode(this.TOOLTIP_CODE));
-    head.append(tooltipFix);
 
     html.appendChild(head);
     html.appendChild(body);
@@ -1085,7 +659,6 @@ console.log("#------>", window.tooltip_manager.tooltip);
       if (this.poppedOut.has(appId)) {
         await popout.close();
       }
-      event.returnValue = true;
     });
 
     popout.addEventListener("unload", async (event) => {
@@ -1144,9 +717,8 @@ console.log("#------>", window.tooltip_manager.tooltip);
           Hooks.callAll("PopOut:close", app, node); // eslint-disable-line no-undef
           await app.close();
         }
-        await popout.close();
+        popout.close();
       }
-      event.returnValue = true;
     });
 
     // -------------------- Move element to window --------------------
@@ -1187,6 +759,7 @@ console.log("#------>", window.tooltip_manager.tooltip);
     // We wait longer than just the DOMContentLoaded
     // because of how the document is constructed manually.
     popout.addEventListener("load", async (event) => {
+      popout.ID = 'POPOUT';
       if (popout.screenX < 0 || popout.screenY < 0) {
         // Fallback in case for some reason the popout out window is not
         // on the visible screen. May not work or be blocked by popout blockers,
@@ -1198,7 +771,7 @@ console.log("#------>", window.tooltip_manager.tooltip);
       if (game.release.generation >= 10) {
         const allFonts = FontConfig._collectDefinitions(); // eslint-disable-line no-undef
         const families = new Set();
-        for (const definitions of allFonts) {
+        for (const definitions of Object.values(allFonts)) {
           for (const [family] of Object.entries(definitions)) {
             families.add(family);
           }
@@ -1250,66 +823,67 @@ console.log("#------>", window.tooltip_manager.tooltip);
         window.keyboard._handleKeyboardEvent(event, true)
       );
 
-      // COMPAT(posnet: 2022-09-17) v9
-      // eslint-disable-next-line no-undef
-      if (game.release.generation < 10) {
-        // From: TextEditor.activateListeners();
-        // These event listeners don't get migrated because they are attached to a jQuery
-        // selected body. This could be more of an issue in future as anyone doing a delegated
-        // event handler will also fail. But that is bad practice.
-        // The following regex will find examples of delegated event handlers in foundry.js
-        // `on\(("|')[^'"]+("|'), *("|')`
-        const jBody = $(body); // eslint-disable-line no-undef
-        jBody.on(
-          "click",
-          "a.entity-link",
-          window.TextEditor._onClickEntityLink !== undefined
-            ? window.TextEditor._onClickEntityLink
-            : window.TextEditor._onClickContentLink
-        );
-        jBody.on(
-          "dragstart",
-          "a.entity-link",
-          window.TextEditor._onDragEntityLink
-        );
-        jBody.on(
-          "click",
-          "a.inline-roll",
-          window.TextEditor._onClickInlineRoll
-        );
-      } else {
-        // From: TextEditor.activateListeners();
-        // These event listeners don't get migrated because they are attached to a jQuery
-        // selected body. This could be more of an issue in future as anyone doing a delegated
-        // event handler will also fail. But that is bad practice.
-        // The following regex will find examples of delegated event handlers in foundry.js
-        // `on\(("|')[^'"]+("|'), *("|')`
-        const jBody = $(body); // eslint-disable-line no-undef
-        jBody.on(
-          "click",
-          "a.content-link",
-          window.TextEditor._onClickEntityLink !== undefined
-            ? window.TextEditor._onClickEntityLink
-            : window.TextEditor._onClickContentLink
-        );
-        jBody.on(
-          "dragstart",
-          "a.content-link",
-          window.TextEditor._onDragEntityLink !== undefined
-            ? window.TextEditor._onDragEntityLink
-            : window.TextEditor._onDragContentLink
-        );
-        jBody.on(
-          "click",
-          "a.inline-roll",
-          window.TextEditor._onClickInlineRoll
-        );
-      }
+      // Register event listeners in popout window and dispatch custom events to main window
+      const mainWindow = window;
 
-      popout.game = game; // eslint-disable-line no-undef
-      popout.tooltip_manager.tooltip =
-        popout.document.getElementById("tooltip");
-      popout.tooltip_manager.activateEventListeners();
+      popout.document.body.addEventListener(
+        "pointerenter",
+        (event) => {
+          this.dispatchEvent(
+            "pointerenter",
+            event.clientX,
+            event.clientY,
+            event.target,
+            popout.document.getElementById("tooltip")
+          );
+        },
+        true
+      );
+
+      popout.document.body.addEventListener(
+        "pointerleave",
+        (event) => {
+          this.dispatchEvent(
+            "pointerleave",
+            event.clientX,
+            event.clientY,
+            event.target,
+            popout.document.getElementById("tooltip")
+          );
+        },
+        true
+      );
+
+      popout.document.body.addEventListener(
+        "pointerup",
+        (event) => {
+          this.dispatchEvent(
+            "pointerup",
+            event.clientX,
+            event.clientY,
+            event.target,
+            popout.document.getElementById("tooltip")
+          );
+        },
+        true
+      );
+
+      popout.document.body.addEventListener(
+        "pointermove",
+        (event) => {
+          this.dispatchEvent(
+            "pointermove",
+            event.clientX,
+            event.clientY,
+            event.target,
+            popout.document.getElementById("tooltip")
+          );
+        },
+        true
+      );
+
+      popout.tooltip = new popout._rootWindow.game.tooltip.constructor();
+      popout.tooltip.activateEventListeners();
 
       this.log("Final node", node, app);
       Hooks.callAll("PopOut:loaded", app, node); // eslint-disable-line no-undef
