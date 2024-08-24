@@ -6,12 +6,28 @@ class PopoutModule {
     this.TIMEOUT_INTERVAL = 50; // ms
     this.MAX_TIMEOUT = 1000; // ms
     // Random id to prevent collision with other modules;
-    this.ID = randomID(24); // eslint-disable-line no-undef
+    if (game.release.generation >= 12) {
+      this.ID = foundry.utils.randomID(24); // eslint-disable-line no-undef
+    } else {
+      this.ID = randomID(24); // eslint-disable-line no-undef
+    }
+    this.eventDispatcher = undefined;
+    this.lastTooltipDest = undefined;
+
+    // apply a red box to the tooltip to make it easier to debug.
+    // and force it to be visible
+    document.getElementById("tooltip").style.border = "1px solid red";
+    document.getElementById("tooltip").style.opacity = "100%";
+    document.getElementById("tooltip").style.display = "visible";
+
+    window.ID = 'MAIN WINDOW';
+
   }
 
   log(msg, ...args) {
     // eslint-disable-next-line no-undef
-    if (game && game.settings.get("popout", "verboseLogs")) {
+    // NO CHECKIN
+    if (game || game.settings.get("popout", "verboseLogs")) {
       const color = "background: #6699ff; color: #000; font-size: larger;";
       console.debug(`%c PopoutModule: ${msg}`, color, ...args);
     }
@@ -129,8 +145,14 @@ class PopoutModule {
     // the same mistake.
     // eslint-disable-next-line no-undef
     if (game.release.generation >= 10) {
+      const outerThis = this;
       const oldGetElementById = document.getElementById.bind(document);
       document.getElementById = function (id) {
+        if (id == "tooltip") {
+          if (outerThis.lastTooltipDest !== undefined) {
+            return outerThis.lastTooltipDest;
+          }
+        }
         let elem = oldGetElementById(id);
         if (elem === null && this.poppedOut.size > 0) {
           for (const entry of this.poppedOut) {
@@ -141,6 +163,10 @@ class PopoutModule {
         }
         return elem;
       }.bind(this);
+
+      this.eventDispatcher = document.createElement("div");
+      this.eventDispatcher.id = `PopOutToolTipProxy-${this.ID}`;
+      document.body.appendChild(this.eventDispatcher);
     }
 
     // NOTE(posnet: 2022-03-13): We need to overwrite the behavior of the hasFocus method of
@@ -183,6 +209,37 @@ class PopoutModule {
     const editor = await tinyMCE.init(config);
     editor[0].remove();
     /* eslint-enable no-undef */
+  }
+
+  dispatchEvent(kind, clientX, clientY, target, dest) {
+    if (target && target.dataset && target.dataset.tooltip) {
+      this.log("Dispatch event", target, dest, this.eventDispatcher);
+    }
+    if (target !== null && this.eventDispatcher !== undefined) {
+      if (target.dataset !== undefined) {
+        // delete existing values;
+        this.lastTooltipDest = dest;
+        if (this.eventDispatcher.dataset !== undefined) {
+          for (const key in this.eventDispatcher.dataset) {
+            delete this.eventDispatcher.dataset[key];
+          }
+        }
+        for (const key in target.dataset) {
+          this.eventDispatcher.dataset[key] = target.dataset[key];
+        }
+        const customEvent = new PointerEvent(kind, {
+          bubbles: true,
+          cancelable: true,
+          clientX: clientX,
+          clientY: clientY,
+          target: target,
+        });
+        this.eventDispatcher.dispatchEvent(customEvent);
+        if (dest !== undefined) {
+          game.tooltip.tooltip = dest;
+        }
+      }
+    }
   }
 
   async addPopout(app) {
@@ -388,23 +445,11 @@ class PopoutModule {
     cssFix.appendChild(document.createTextNode(cssFixContent));
     head.appendChild(cssFix);
 
-    // BROKEN(posnet: 2024-08-19): Giving up on tooltips for the moment
-    // I have a branch with a sort of viable solution, but it will be even more
-    // brittle, and I am very hesitant to commit to supporting it.
-    // // COMPAT(posnet: 2022-05-05):
-    // // Last ditch effort to support tooltips. By far the worst hack I've needed to do.
-    // // Basically I have just embedded a copy of the TooltipManager class from the base game directly
-    // // into the popped out window because all other attempts to hack arround it have failed,
-    // // either because it's extensive use of window and document methods, or the fact that it uses
-    // // private js members. If this breaks again, I will most likely just leave it broken.
-    // const tooltipNode = document.createElement("aside");
-    // tooltipNode.id = "tooltip";
-    // tooltipNode.role = "tooltip";
-    // body.appendChild(tooltipNode);
-
-    // const tooltipFix = document.createElement("script");
-    // tooltipFix.appendChild(document.createTextNode(this.TOOLTIP_CODE));
-    // head.append(tooltipFix);
+    // Remove embedding TooltipManager
+    const tooltipNode = document.createElement("aside");
+    tooltipNode.id = "tooltip";
+    tooltipNode.role = "tooltip";
+    body.appendChild(tooltipNode);
 
     html.appendChild(head);
     html.appendChild(body);
@@ -614,7 +659,6 @@ class PopoutModule {
       if (this.poppedOut.has(appId)) {
         await popout.close();
       }
-      event.returnValue = true;
     });
 
     popout.addEventListener("unload", async (event) => {
@@ -673,9 +717,8 @@ class PopoutModule {
           Hooks.callAll("PopOut:close", app, node); // eslint-disable-line no-undef
           await app.close();
         }
-        await popout.close();
+        popout.close();
       }
-      event.returnValue = true;
     });
 
     // -------------------- Move element to window --------------------
@@ -716,6 +759,7 @@ class PopoutModule {
     // We wait longer than just the DOMContentLoaded
     // because of how the document is constructed manually.
     popout.addEventListener("load", async (event) => {
+      popout.ID = 'POPOUT';
       if (popout.screenX < 0 || popout.screenY < 0) {
         // Fallback in case for some reason the popout out window is not
         // on the visible screen. May not work or be blocked by popout blockers,
@@ -727,7 +771,7 @@ class PopoutModule {
       if (game.release.generation >= 10) {
         const allFonts = FontConfig._collectDefinitions(); // eslint-disable-line no-undef
         const families = new Set();
-        for (const definitions of allFonts) {
+        for (const definitions of Object.values(allFonts)) {
           for (const [family] of Object.entries(definitions)) {
             families.add(family);
           }
@@ -779,66 +823,67 @@ class PopoutModule {
         window.keyboard._handleKeyboardEvent(event, true)
       );
 
-      // COMPAT(posnet: 2022-09-17) v9
-      // eslint-disable-next-line no-undef
-      if (game.release.generation < 10) {
-        // From: TextEditor.activateListeners();
-        // These event listeners don't get migrated because they are attached to a jQuery
-        // selected body. This could be more of an issue in future as anyone doing a delegated
-        // event handler will also fail. But that is bad practice.
-        // The following regex will find examples of delegated event handlers in foundry.js
-        // `on\(("|')[^'"]+("|'), *("|')`
-        const jBody = $(body); // eslint-disable-line no-undef
-        jBody.on(
-          "click",
-          "a.entity-link",
-          window.TextEditor._onClickEntityLink !== undefined
-            ? window.TextEditor._onClickEntityLink
-            : window.TextEditor._onClickContentLink
-        );
-        jBody.on(
-          "dragstart",
-          "a.entity-link",
-          window.TextEditor._onDragEntityLink
-        );
-        jBody.on(
-          "click",
-          "a.inline-roll",
-          window.TextEditor._onClickInlineRoll
-        );
-      } else {
-        // From: TextEditor.activateListeners();
-        // These event listeners don't get migrated because they are attached to a jQuery
-        // selected body. This could be more of an issue in future as anyone doing a delegated
-        // event handler will also fail. But that is bad practice.
-        // The following regex will find examples of delegated event handlers in foundry.js
-        // `on\(("|')[^'"]+("|'), *("|')`
-        const jBody = $(body); // eslint-disable-line no-undef
-        jBody.on(
-          "click",
-          "a.content-link",
-          window.TextEditor._onClickEntityLink !== undefined
-            ? window.TextEditor._onClickEntityLink
-            : window.TextEditor._onClickContentLink
-        );
-        jBody.on(
-          "dragstart",
-          "a.content-link",
-          window.TextEditor._onDragEntityLink !== undefined
-            ? window.TextEditor._onDragEntityLink
-            : window.TextEditor._onDragContentLink
-        );
-        jBody.on(
-          "click",
-          "a.inline-roll",
-          window.TextEditor._onClickInlineRoll
-        );
-      }
+      // Register event listeners in popout window and dispatch custom events to main window
+      const mainWindow = window;
 
-      popout.game = game; // eslint-disable-line no-undef
-      popout.tooltip_manager.tooltip =
-        popout.document.getElementById("tooltip");
-      popout.tooltip_manager.activateEventListeners();
+      popout.document.body.addEventListener(
+        "pointerenter",
+        (event) => {
+          this.dispatchEvent(
+            "pointerenter",
+            event.clientX,
+            event.clientY,
+            event.target,
+            popout.document.getElementById("tooltip")
+          );
+        },
+        true
+      );
+
+      popout.document.body.addEventListener(
+        "pointerleave",
+        (event) => {
+          this.dispatchEvent(
+            "pointerleave",
+            event.clientX,
+            event.clientY,
+            event.target,
+            popout.document.getElementById("tooltip")
+          );
+        },
+        true
+      );
+
+      popout.document.body.addEventListener(
+        "pointerup",
+        (event) => {
+          this.dispatchEvent(
+            "pointerup",
+            event.clientX,
+            event.clientY,
+            event.target,
+            popout.document.getElementById("tooltip")
+          );
+        },
+        true
+      );
+
+      popout.document.body.addEventListener(
+        "pointermove",
+        (event) => {
+          this.dispatchEvent(
+            "pointermove",
+            event.clientX,
+            event.clientY,
+            event.target,
+            popout.document.getElementById("tooltip")
+          );
+        },
+        true
+      );
+
+      popout.tooltip = new popout._rootWindow.game.tooltip.constructor();
+      popout.tooltip.activateEventListeners();
 
       this.log("Final node", node, app);
       Hooks.callAll("PopOut:loaded", app, node); // eslint-disable-line no-undef
