@@ -302,7 +302,7 @@ class PopoutModule {
 
   moveDialog(app, parentApp) {
     const parent = this.poppedOut.get(parentApp.appId);
-    const dialogNode = app.element[0];
+    const dialogNode = $(app.element)[0];
 
     // Hide element
     const setDisplay = dialogNode.style.display;
@@ -422,15 +422,15 @@ class PopoutModule {
 
     // eslint-disable-next-line no-undef
     if (game.settings.get("popout", "useWindows")) {
-      const position = app.element.position(); // JQuery position function.
-      let width = app.element.innerWidth();
-      let height = app.element.innerHeight();
+      const position = app.position ?? element.position(); // JQuery position function.
+      let width = $(app.element).innerWidth();
+      let height = $(app.element).innerHeight();
       let left = position.left;
       let top = position.top;
       // eslint-disable-next-line no-undef
       if (game && game.settings.get("popout", "trueBoundingBox")) {
         // eslint-disable-line no-undef
-        const bounding = this.recursiveBoundingBox(app.element[0]);
+        const bounding = this.recursiveBoundingBox($(app.element)[0]);
         if (bounding.x < left) {
           offsets.left = `${left - bounding.x}`;
           left = bounding.x;
@@ -484,22 +484,25 @@ class PopoutModule {
     return popout;
   }
 
-  onPopoutClicked(app) {
+  onPopoutClicked(baseApp) {
     // Check if popout in Electron window
     if (navigator.userAgent.toLowerCase().indexOf(" electron/") !== -1) {
       ui.notifications.warn(game.i18n.localize("POPOUT.electronWarning")); // eslint-disable-line no-undef
       return;
     }
 
-    if (window.ui.windows[app.appId] === undefined) {
+    const app = window.ui.windows[baseApp.appId] ?? foundry.applications.instances.get(baseApp.id);
+    const appId = app.appId ?? app.id;
+
+    if (app === undefined) {
       // eslint-disable-line no-undef
       this.log("Attempt to open not a user interface window.");
       return;
     }
 
-    if (this.poppedOut.has(app.appId)) {
+    if (this.poppedOut.has(appId)) {
       // This check is to ensure PopOut is idempotent to popout calls.
-      let currentState = this.poppedOut.get(app.appId);
+      let currentState = this.poppedOut.get(appId);
       if (currentState && currentState.window && !currentState.window.closed) {
         currentState.window.focus();
         return;
@@ -508,7 +511,7 @@ class PopoutModule {
         currentState.window &&
         currentState.window.closed
       ) {
-        this.poppedOut.delete(app.appId);
+        this.poppedOut.delete(appId);
       }
     }
 
@@ -518,11 +521,11 @@ class PopoutModule {
     // -------------------- Obtain application --------------------
     const state = {
       app: app,
-      node: app.element[0],
+      node: $(app.element)[0],
       position: duplicate(app.position), // eslint-disable-line no-undef
       minimized: app._minimized,
-      display: app.element[0].style.display,
-      css: app.element[0].style.cssText,
+      display: $(app.element)[0].style.display,
+      css: $(app.element)[0].style.cssText,
       children: [],
     };
 
@@ -746,6 +749,7 @@ class PopoutModule {
       body.style.overflow = "auto";
       body.append(state.node);
 
+      state.node.classList.add('popout'); 
       state.node.style.cssText = `
                 display: flex;
                 top: ${offsets.top};
@@ -852,7 +856,7 @@ class PopoutModule {
       popout.focus();
       const result = oldBringToTop.apply(app, args);
       // In a popout we always want the base sheet to be at the back.
-      app.element[0].style.zIndex = 0;
+      $(app.element)[0].style.zIndex = 0;
       return result;
     };
 
