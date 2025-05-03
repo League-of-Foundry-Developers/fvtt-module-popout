@@ -20,8 +20,7 @@ class PopoutModule {
     document.getElementById("tooltip").style.opacity = "100%";
     document.getElementById("tooltip").style.display = "visible";
 
-    window.ID = 'MAIN WINDOW';
-
+    window.ID = "MAIN WINDOW";
   }
 
   log(msg, ...args) {
@@ -759,7 +758,7 @@ class PopoutModule {
     // We wait longer than just the DOMContentLoaded
     // because of how the document is constructed manually.
     popout.addEventListener("load", async (event) => {
-      popout.ID = 'POPOUT';
+      popout.ID = "POPOUT";
       if (popout.screenX < 0 || popout.screenY < 0) {
         // Fallback in case for some reason the popout out window is not
         // on the visible screen. May not work or be blocked by popout blockers,
