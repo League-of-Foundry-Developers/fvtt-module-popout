@@ -6,7 +6,8 @@ class PopoutModule {
     this.TIMEOUT_INTERVAL = 50; // ms
     this.MAX_TIMEOUT = 1000; // ms
     // Random id to prevent collision with other modules;
-    this.ID = randomID(24); // eslint-disable-line no-undef
+    // Use the new v12+ API if available, fallback to global for older versions
+    this.ID = (foundry?.utils?.randomID || randomID)(24); // eslint-disable-line no-undef
   }
 
   log(msg, ...args) {
@@ -88,8 +89,8 @@ class PopoutModule {
       name: "Enable more module logging.",
       hint: "Enables more verbose module logging. This is useful for debugging the module. But otherwise should be left off.",
       scope: "client",
-      config: false,
-      default: false,
+      config: true,
+      default: true,
       type: Boolean,
     });
     /* eslint-enable no-undef */
@@ -103,6 +104,7 @@ class PopoutModule {
           if (!isNaN(appId)) {
             return !this.poppedOut.has(appId);
           }
+          return true;
         });
       },
       set: (obj, prop, value) => {
@@ -121,6 +123,8 @@ class PopoutModule {
     };
     ui.windows = new Proxy(ui.windows, handler); // eslint-disable-line no-undef
     this.log("Installed window interceptor", ui.windows); // eslint-disable-line no-undef
+
+    // ApplicationV2 hooks will be registered after init in the ready hook below
 
     // COMPAT(posnet: 2022-09-24) v10 prosemirror
     // This is very stupid and bad, but people seem unaware that getElementById is not good.
@@ -145,30 +149,57 @@ class PopoutModule {
 
     // NOTE(posnet: 2022-03-13): We need to overwrite the behavior of the hasFocus method of
     // the game keyboard class since it does not check all documents.
-    // eslint-disable-next-line no-undef
-    libWrapper.register(
-      "popout",
-      "game.keyboard.hasFocus",
-      () => {
-        const formElements = [
-          "input",
-          "select",
-          "textarea",
-          "option",
-          "button",
-          "[contenteditable]",
-        ];
-        const selector = formElements.map((el) => `${el}:focus`).join(", ");
-        var hasFocus = document.querySelectorAll(selector).length > 0;
+    
+    // Define the override function that checks all windows including popouts
+    const overrideHasFocus = () => {
+      if (!game.keyboard || typeof game.keyboard.hasFocus !== 'function') return false;
+      
+      // Store the original hasFocus method
+      const originalHasFocus = game.keyboard.hasFocus.bind(game.keyboard);
+      
+      // Check if we're on v13 or later
+      const isV13 = game.release?.generation >= 13 || 
+                    (foundry.utils?.isNewerVersion && foundry.utils.isNewerVersion(game.version, "13.0.0"));
+      
+      // Override the hasFocus method to check popped out windows too
+      game.keyboard.hasFocus = () => {
+        // Helper function to check if an element has focus based on version
+        const checkElementFocus = (element) => {
+          if (!(element instanceof HTMLElement)) return false;
+          
+          if (isV13) {
+            // v13 logic with dataset and specific checks
+            if (["", "true"].includes(element.dataset.keyboardFocus)) return true;
+            if (element.dataset.keyboardFocus === "false") return false;
+            if (["INPUT", "SELECT", "TEXTAREA"].includes(element.tagName)) return true;
+            if (element.isContentEditable) return true;
+            if (element.tagName === "BUTTON" && element.form) return true;
+            return false;
+          } else {
+            // v12 logic - any focused HTMLElement counts
+            return true;
+          }
+        };
+        
+        // Check main document
+        if (checkElementFocus(document.activeElement)) return true;
+        
+        // Check all popped out windows
         for (const val of this.poppedOut.values()) {
-          hasFocus =
-            hasFocus ||
-            val.window.document.querySelectorAll(selector).length > 0;
+          if (!val.window || val.window.closed) continue;
+          if (checkElementFocus(val.window.document.activeElement)) return true;
         }
-        return hasFocus;
-      },
-      "OVERRIDE"
-    );
+        
+        return false;
+      };
+      
+      return true;
+    };
+    
+    // Try to override immediately, or defer until ready
+    if (!overrideHasFocus()) {
+      Hooks.once('ready', overrideHasFocus);
+    }
 
     // NOTE(posnet: 2020-07-12): we need to initialize TinyMCE to ensure its plugins,
     // are loaded into the frame. Otherwise our popouts will not be able to access
@@ -193,22 +224,51 @@ class PopoutModule {
       this.log("Ignoring app marked as do not popout", app);
       return;
     }
-    if (this.poppedOut.has(app.appId)) {
+    const appIdentifier = app.appId || app.id;
+    if (this.poppedOut.has(appIdentifier)) {
       this.log("Already popped out");
-      this.poppedOut.get(app.appId).window.focus();
+      this.poppedOut.get(appIdentifier).window.focus();
       return;
     }
 
     let waitRender = Math.floor(this.MAX_TIMEOUT / this.TIMEOUT_INTERVAL);
-    while (
-      app._state !== Application.RENDER_STATES.RENDERED && // eslint-disable-line no-undef
-      waitRender-- > 0
-    ) {
+    
+    // Check render state for both v1 and v2 apps
+    const isV1App = app._state !== undefined;
+    const isV2App = app.state !== undefined && foundry?.applications?.ApplicationV2;
+    
+    this.log("App type detection - V1:", isV1App, "V2:", isV2App, "State:", app._state || app.state);
+    
+    while (waitRender-- > 0) {
+      let isRendered = false;
+      
+      if (isV1App) {
+        isRendered = app._state === Application.RENDER_STATES.RENDERED; // eslint-disable-line no-undef
+      } else if (isV2App) {
+        isRendered = app.state === foundry.applications.ApplicationV2.RENDER_STATES.RENDERED;
+      } else {
+        // For apps that don't have clear state, check if they have an element
+        isRendered = !!(app.element || app._element);
+      }
+      
+      if (isRendered) break;
+      
       await new Promise((r) => setTimeout(r, this.TIMEOUT_INTERVAL));
     }
-    // eslint-disable-next-line no-undef
-    if (app._state !== Application.RENDER_STATES.RENDERED) {
-      this.log("Timeout out waiting for app to render");
+    
+    // Check final render state
+    let isRendered = false;
+    if (isV1App) {
+      isRendered = app._state === Application.RENDER_STATES.RENDERED; // eslint-disable-line no-undef
+    } else if (isV2App) {
+      isRendered = app.state === foundry.applications.ApplicationV2.RENDER_STATES.RENDERED;
+    } else {
+      // For apps that don't have clear state, check if they have an element
+      isRendered = !!(app.element || app._element);
+    }
+    
+    if (!isRendered) {
+      this.log("Timeout out waiting for app to render - V1:", isV1App, "V2:", isV2App);
       return;
     }
 
@@ -233,17 +293,122 @@ class PopoutModule {
       /* eslint-enable no-undef */
 
       link.on("click", () => this.onPopoutClicked(app));
+      
+      // Handle both ApplicationV1 and ApplicationV2 
       // eslint-disable-next-line no-undef
       if (game && game.settings.get("popout", "showButton")) {
-        app.element.find(".window-title").after(link);
+        let attached = false;
+        
+        if (app.element && app.element.find) {
+          // ApplicationV1 - has jQuery element
+          app.element.find(".window-title").after(link);
+          this.log("Attached button to V1 app");
+          attached = true;
+        } else {
+          // ApplicationV2 - try to find element by ID in DOM
+          const appId = app.id || app.appId;
+          let appElement = null;
+          
+          // Try different ways to find the element
+          if (appId) {
+            appElement = document.getElementById(appId);
+          }
+          if (!appElement && app._element) {
+            appElement = app._element instanceof jQuery ? app._element[0] : app._element;
+          }
+          if (!appElement && app.element) {
+            appElement = app.element instanceof jQuery ? app.element[0] : app.element;
+          }
+          
+          this.log("V2 app element search - ID:", appId, "Element:", appElement);
+          
+          if (appElement) {
+            // For ApplicationV2, add to header controls area
+            const header = appElement.querySelector(".window-header");
+            const closeButton = header?.querySelector('[data-action="close"]');
+            if (closeButton) {
+              // Create header control button (always icon-only for ApplicationV2)
+              const headerButton = document.createElement("button");
+              headerButton.id = domID;
+              headerButton.className = "header-control icon popout-module-button";
+              headerButton.type = "button";
+              headerButton.innerHTML = '<i class="fas fa-external-link-alt"></i>';
+              headerButton.setAttribute("data-tooltip", game.i18n.localize("POPOUT.PopOut"));
+              
+              // Add click handler
+              headerButton.addEventListener("click", () => this.onPopoutClicked(app));
+              
+              closeButton.parentNode.insertBefore(headerButton, closeButton);
+              this.log("Attached button to V2 app header");
+              attached = true;
+            } else {
+              this.log("Could not find close button in V2 app header");
+            }
+          } else {
+            this.log("Could not find app element for V2 app");
+          }
+        }
+        
+        if (!attached) {
+          this.log("Could not attach button to app");
+        }
       }
-      this.log("Attached", app);
     }
   }
 
   appToID(app) {
-    const domID = `popout_${this.ID}_${app.appId}`;
+    const appIdentifier = app.appId || app.id;
+    const domID = `popout_${this.ID}_${appIdentifier}`;
     return domID;
+  }
+
+  getAppElement(app) {
+    const isV2App = app.id && !app.appId; // V2 apps use 'id', V1 apps use 'appId'
+    this.log("Getting element for app - V2:", isV2App, "ID:", app.id || app.appId);
+    
+    if (isV2App) {
+      // ApplicationV2 - use ID to find the element
+      const appId = app.id;
+      this.log("Looking for ApplicationV2 element with ID:", appId);
+      
+      if (appId) {
+        const element = document.getElementById(appId);
+        if (element) {
+          this.log("Found ApplicationV2 element by ID:", element.tagName, element.className);
+          return element;
+        }
+      }
+      
+      // Fallback for ApplicationV2
+      if (app._element) {
+        const element = app._element instanceof jQuery ? app._element[0] : app._element;
+        this.log("Found ApplicationV2 element via app._element:", element?.tagName, element?.className);
+        return element;
+      }
+    } else {
+      // ApplicationV1 - use jQuery element
+      if (app.element && app.element[0]) {
+        this.log("Found ApplicationV1 element via app.element");
+        return app.element[0];
+      }
+      
+      // Fallback for ApplicationV1 using appId
+      const appId = app.appId;
+      if (appId) {
+        const element = document.getElementById(appId);
+        if (element) {
+          this.log("Found ApplicationV1 element by ID:", element.tagName, element.className);
+          return element;
+        }
+      }
+    }
+    
+    this.log("Could not find element for app");
+    return null;
+  }
+
+  attachApplicationV2Events(app, clonedNode, popout) {
+    this.log("Skipping ApplicationV2 event re-attachment - events should survive adoptNode");
   }
   handleChildDialog(app) {
     // This handler attempts to make behavior less confusing for modal/dialog like interactions
@@ -259,7 +424,8 @@ class PopoutModule {
       const keys = Object.keys(app.actor.apps);
       if (keys.length == 1) {
         const parent = app.actor.apps[keys[0]];
-        if (this.poppedOut.has(parent.appId)) {
+        const parentId = parent.appId || parent.id;
+        if (this.poppedOut.has(parentId)) {
           this.log("Intercepting dialog of popped out window.");
           this.moveDialog(app, parent);
           return true;
@@ -274,7 +440,8 @@ class PopoutModule {
       const keys = Object.keys(app.object.apps);
       if (keys.length == 1) {
         const parent = app.object.apps[keys[0]];
-        if (this.poppedOut.has(parent.appId)) {
+        const parentId = parent.appId || parent.id;
+        if (this.poppedOut.has(parentId)) {
           this.log("Intercepting dialog of popped out window.");
           this.moveDialog(app, parent);
           return true;
@@ -287,10 +454,22 @@ class PopoutModule {
     const deadline = Date.now() - 1000; // Last click happened within the last second
     for (let state of this.poppedOut.values()) {
       if (state.window._popout_last_click > deadline) {
-        // We only nest popout intercepted application if they extend the Dialog class.
-        // eslint-disable-next-line no-undef
-        if (app instanceof Dialog) {
-          this.log("Intercepting likely dialog of popped out window.", app);
+        // Check for both v1 Dialog class and v2 dialog apps
+        const isV1Dialog = app instanceof Dialog; // eslint-disable-line no-undef
+        const isV2Dialog = (app.id && !app.appId) && // Must be ApplicationV2
+                          (app.constructor.name.includes('Dialog') || 
+                           app.constructor.name.includes('Config') ||
+                           app.constructor.name.includes('Roll')); // Common dialog patterns
+        
+        this.log("Dialog detection - V1:", isV1Dialog, "V2:", isV2Dialog, "Class:", app.constructor.name);
+        
+        // Additional logging for debugging mismatched apps
+        if (isV2Dialog) {
+          this.log("V2 Dialog pattern matched - will move to popout:", app.constructor.name);
+        }
+        
+        if (isV1Dialog || isV2Dialog) {
+          this.log("Intercepting likely dialog of popped out window:", app.constructor.name);
           this.moveDialog(app, state.app);
           return true;
         }
@@ -301,8 +480,9 @@ class PopoutModule {
   }
 
   moveDialog(app, parentApp) {
-    const parent = this.poppedOut.get(parentApp.appId);
-    const dialogNode = app.element[0];
+    const parentId = parentApp.appId || parentApp.id;
+    const parent = this.poppedOut.get(parentId);
+    const dialogNode = this.getAppElement(app);
 
     // Hide element
     const setDisplay = dialogNode.style.display;
@@ -321,7 +501,10 @@ class PopoutModule {
     node.style.top = "50%";
     node.style.left = "50%";
     node.style.transform = "translate(-50%, -50%)";
-    parentApp.element[0].style.zIndex = 0;
+    const parentElement = this.getAppElement(parentApp);
+    if (parentElement) {
+      parentElement.style.zIndex = 0;
+    }
 
     // We manually intercept the setPosition function of the dialog app in
     // order to handle re-renders that change the position.
@@ -422,15 +605,41 @@ class PopoutModule {
 
     // eslint-disable-next-line no-undef
     if (game.settings.get("popout", "useWindows")) {
-      const position = app.element.position(); // JQuery position function.
-      let width = app.element.innerWidth();
-      let height = app.element.innerHeight();
-      let left = position.left;
-      let top = position.top;
+      let position, width, height, left, top, element;
+      
+      // Handle both ApplicationV1 (jQuery) and ApplicationV2 (native DOM)
+      if (app.element && app.element.position) {
+        // ApplicationV1 with jQuery element
+        position = app.element.position();
+        width = app.element.innerWidth();
+        height = app.element.innerHeight();
+        left = position.left;
+        top = position.top;
+        element = app.element[0];
+      } else {
+        // ApplicationV2 with native DOM element
+        const nativeElement = this.getAppElement(app);
+        if (nativeElement) {
+          const rect = nativeElement.getBoundingClientRect();
+          left = rect.left + window.scrollX;
+          top = rect.top + window.scrollY;
+          width = rect.width;
+          height = rect.height;
+          element = nativeElement;
+        } else {
+          // Fallback values if no element found
+          left = 100;
+          top = 100;
+          width = 800;
+          height = 600;
+          element = null;
+        }
+      }
+      
       // eslint-disable-next-line no-undef
-      if (game && game.settings.get("popout", "trueBoundingBox")) {
+      if (element && game && game.settings.get("popout", "trueBoundingBox")) {
         // eslint-disable-line no-undef
-        const bounding = this.recursiveBoundingBox(app.element[0]);
+        const bounding = this.recursiveBoundingBox(element);
         if (bounding.x < left) {
           offsets.left = `${left - bounding.x}`;
           left = bounding.x;
@@ -491,15 +700,20 @@ class PopoutModule {
       return;
     }
 
-    if (window.ui.windows[app.appId] === undefined) {
+    // Check both v1 and v2 applications
+    const appIdentifier = app.appId || app.id;
+    const isV1App = window.ui.windows[app.appId] !== undefined;
+    const isV2App = foundry?.applications?.instances?.has(app.id);
+    
+    if (!isV1App && !isV2App) {
       // eslint-disable-line no-undef
       this.log("Attempt to open not a user interface window.");
       return;
     }
 
-    if (this.poppedOut.has(app.appId)) {
+    if (this.poppedOut.has(appIdentifier)) {
       // This check is to ensure PopOut is idempotent to popout calls.
-      let currentState = this.poppedOut.get(app.appId);
+      let currentState = this.poppedOut.get(appIdentifier);
       if (currentState && currentState.window && !currentState.window.closed) {
         currentState.window.focus();
         return;
@@ -508,7 +722,7 @@ class PopoutModule {
         currentState.window &&
         currentState.window.closed
       ) {
-        this.poppedOut.delete(app.appId);
+        this.poppedOut.delete(appIdentifier);
       }
     }
 
@@ -516,13 +730,19 @@ class PopoutModule {
     this.log("Features", windowFeatures, offsets);
 
     // -------------------- Obtain application --------------------
+    const appElement = this.getAppElement(app);
+    if (!appElement) {
+      this.log("Could not find element for app");
+      return;
+    }
+    
     const state = {
       app: app,
-      node: app.element[0],
-      position: duplicate(app.position), // eslint-disable-line no-undef
+      node: appElement,
+      position: foundry?.utils?.duplicate ? foundry.utils.duplicate(app.position) : duplicate(app.position), // eslint-disable-line no-undef
       minimized: app._minimized,
-      display: app.element[0].style.display,
-      css: app.element[0].style.cssText,
+      display: appElement.style.display,
+      css: appElement.style.cssText,
       children: [],
     };
 
@@ -545,9 +765,19 @@ class PopoutModule {
 
     // This is fiddly and probably not that robust to other modules.
     // But does provide behavior closer to the vanilla fvtt iterations.
-    state.header = state.node.querySelector(".window-header");
+    // Try multiple selectors for different application types
+    state.header = state.node.querySelector(".window-header") || 
+                   state.node.querySelector("header.window-header") ||
+                   state.node.querySelector(".application-header");
+    
+    // For ApplicationV2, also store the controls dropdown if it exists
+    state.controlsDropdown = state.node.querySelector(".controls-dropdown");
+    
     if (state.header) {
       state.header.remove();
+    }
+    if (state.controlsDropdown) {
+      state.controlsDropdown.remove();
     }
 
     state.handle = state.node.querySelector(".window-resizable-handle");
@@ -559,36 +789,42 @@ class PopoutModule {
     // into it to ensure that the drag behavior is ignored.
     // however we have to manually move the actual controls over,
     // so that their event handlers are preserved.
-    const shallowHeader = state.header.cloneNode(false);
-    shallowHeader.classList.remove("draggable");
-    let domID = this.appToID(app);
-    for (const child of [...state.header.children]) {
-      if (child.id == domID) {
-        // Change Close button
-        /* eslint-disable no-unused-vars, no-undef */
+    if (state.header) {
+      const shallowHeader = state.header.cloneNode(false);
+      shallowHeader.classList.remove("draggable");
+      let domID = this.appToID(app);
+      for (const child of [...state.header.children]) {
+        if (child.id == domID) {
+          // Change Close button
+          /* eslint-disable no-unused-vars, no-undef */
 
-        let buttonText = game.i18n.localize("POPOUT.PopIn");
-        if (game && game.settings.get("popout", "iconOnly")) {
-          buttonText = "";
+          let buttonText = game.i18n.localize("POPOUT.PopIn");
+          // ApplicationV2 apps always use icon-only buttons
+          const isV2App = app.id && !app.appId; // V2 apps use 'id', V1 apps use 'appId'
+          if ((game && game.settings.get("popout", "iconOnly")) || isV2App) {
+            buttonText = "";
+          }
+
+          $(child)
+            .html(
+              `<i class="fas fa-sign-in-alt" title="${game.i18n.localize(
+                "POPOUT.PopIn"
+              )}"></i>${buttonText}`
+            )
+            .off("click")
+            .on("click", (event) => {
+              popout._popout_dont_close = true;
+              popout.close();
+            });
+          /* eslint-enable no-unused-vars, no-undef */
         }
-
-        $(child)
-          .html(
-            `<i class="fas fa-sign-in-alt" title="${game.i18n.localize(
-              "POPOUT.PopIn"
-            )}"></i>${buttonText}`
-          )
-          .off("click")
-          .on("click", (event) => {
-            popout._popout_dont_close = true;
-            popout.close();
-          });
-        /* eslint-enable no-unused-vars, no-undef */
+        shallowHeader.appendChild(child);
       }
-      shallowHeader.appendChild(child);
+      // re-parent the new shallow header to the app node.
+      state.node.insertBefore(shallowHeader, state.node.children[0]);
+    } else {
+      this.log("No header found for application, skipping header manipulation");
     }
-    // re-parent the new shallow header to the app node.
-    state.node.insertBefore(shallowHeader, state.node.children[0]);
 
     // -------------------- Write document --------------------
 
@@ -610,7 +846,7 @@ class PopoutModule {
 
     window.addEventListener("unload", async (event) => {
       this.log("Unload event", event);
-      const appId = app.appId;
+      const appId = app.appId || app.id;
       if (this.poppedOut.has(appId)) {
         await popout.close();
       }
@@ -619,7 +855,7 @@ class PopoutModule {
 
     popout.addEventListener("unload", async (event) => {
       this.log("Unload event", event);
-      const appId = app.appId;
+      const appId = app.appId || app.id;
       if (this.poppedOut.has(appId)) {
         const poppedOut = this.poppedOut.get(appId);
         this.log("Closing popout", app.title);
@@ -635,20 +871,38 @@ class PopoutModule {
         const node = poppedOut.node;
         node.style.cssText = poppedOut.css;
         if (poppedOut.header) {
-          const header = node.querySelector(".window-header");
-          for (const child of [...header.children]) {
-            // Remove popin button so we can re-add it properly later
-            if (child.id !== domID) {
-              poppedOut.header.appendChild(child);
+          const header = node.querySelector(".window-header") || 
+                       node.querySelector("header.window-header") ||
+                       node.querySelector(".application-header");
+          if (header) {
+            for (const child of [...header.children]) {
+              // Remove popin button so we can re-add it properly later
+              const popinButtonId = this.appToID(app);
+              if (child.id !== popinButtonId) {
+                poppedOut.header.appendChild(child);
+              }
             }
           }
 
           node.insertBefore(poppedOut.header, node.children[0]);
-          header.remove();
+          if (header) {
+            header.remove();
+          }
         }
 
         if (poppedOut.handle) {
           node.appendChild(poppedOut.handle);
+        }
+        
+        // Restore controls dropdown for ApplicationV2
+        if (poppedOut.controlsDropdown) {
+          // Insert after header
+          if (poppedOut.header) {
+            poppedOut.header.insertAdjacentElement('afterend', poppedOut.controlsDropdown);
+          } else {
+            // Fallback: add at the beginning of the node
+            node.insertBefore(poppedOut.controlsDropdown, node.children[0]);
+          }
         }
 
         window.document.body.append(window.document.adoptNode(node));
@@ -725,7 +979,8 @@ class PopoutModule {
 
       // eslint-disable-next-line no-undef
       if (game.release.generation >= 10) {
-        const allFonts = FontConfig._collectDefinitions(); // eslint-disable-line no-undef
+        const FontConfigClass = foundry?.applications?.settings?.menus?.FontConfig || FontConfig; // eslint-disable-line no-undef
+        const allFonts = FontConfigClass._collectDefinitions();
         const families = new Set();
         for (const definitions of allFonts) {
           for (const [family] of Object.entries(definitions)) {
@@ -742,9 +997,50 @@ class PopoutModule {
       }
 
       const body = event.target.getElementsByTagName("body")[0];
-      const node = targetDoc.adoptNode(state.node);
-      body.style.overflow = "auto";
-      body.append(state.node);
+      
+      // Handle ApplicationV2 which uses different DOM adoption
+      const isApplicationV2 = app.id && !app.appId; // V2 apps use 'id', V1 apps use 'appId'
+      
+      if (isApplicationV2) {
+        this.log("Starting ApplicationV2 DOM handling...");
+        
+        // Monkey-patch D&D5e custom elements to handle adoptedStyleSheets gracefully
+        this.log("Patching custom elements for safe adoption...");
+        const customElements = state.node.querySelectorAll('slide-toggle, dnd5e-checkbox, proficiency-cycle, dnd5e-icon');
+        customElements.forEach(element => {
+          if (element._adoptStyleSheet) {
+            const original_adoptStyleSheet = element._adoptStyleSheet;
+            element._adoptStyleSheet = function(sheet) {
+              try {
+                return original_adoptStyleSheet.call(this, sheet);
+              } catch (error) {
+                PopoutModule.singleton.log("Caught adoptedStyleSheets error for", this.tagName, "- continuing without styles");
+                // Fail silently to prevent breaking the popout
+              }
+            };
+          }
+        });
+        
+        try {
+          const adoptedNode = targetDoc.adoptNode(state.node);
+          this.log("Successfully adopted ApplicationV2 node");
+          
+          body.style.overflow = "auto";
+          body.append(adoptedNode);
+          this.log("Successfully appended adopted node");
+          
+          // Update state to reference the adopted node
+          state.node = adoptedNode;
+        } catch (error) {
+          this.log("Error adopting ApplicationV2 node:", error);
+          throw error;
+        }
+      } else {
+        // ApplicationV1 - use the original adoption method
+        const adoptedNode = targetDoc.adoptNode(state.node);
+        body.style.overflow = "auto";
+        body.append(state.node);
+      }
 
       state.node.style.cssText = `
                 display: flex;
@@ -772,12 +1068,28 @@ class PopoutModule {
         if ([3, 4, 5].includes(ev.button)) ev.preventDefault();
       });
 
-      popout.addEventListener("keydown", (event) =>
-        window.keyboard._handleKeyboardEvent(event, false)
-      );
-      popout.addEventListener("keyup", (event) =>
-        window.keyboard._handleKeyboardEvent(event, true)
-      );
+      // Forward keyboard events to main window for keybinding support
+      // NOTE: v13 changed the keyboard API, _handleKeyboardEvent is private/removed
+      popout.addEventListener("keydown", (event) => {
+        if (window.keyboard && window.keyboard._handleKeyboardEvent) {
+          // v12 and earlier - use private method
+          window.keyboard._handleKeyboardEvent(event, false);
+        } else if (game.keyboard && game.keyboard.onKeyDown) {
+          // v13+ - try public API
+          game.keyboard.onKeyDown(event);
+        }
+        // For v13, if no API available, let the event bubble normally
+      });
+      popout.addEventListener("keyup", (event) => {
+        if (window.keyboard && window.keyboard._handleKeyboardEvent) {
+          // v12 and earlier - use private method  
+          window.keyboard._handleKeyboardEvent(event, true);
+        } else if (game.keyboard && game.keyboard.onKeyUp) {
+          // v13+ - try public API
+          game.keyboard.onKeyUp(event);
+        }
+        // For v13, if no API available, let the event bubble normally
+      });
 
       // COMPAT(posnet: 2022-09-17) v9
       // eslint-disable-next-line no-undef
@@ -813,35 +1125,41 @@ class PopoutModule {
         // event handler will also fail. But that is bad practice.
         // The following regex will find examples of delegated event handlers in foundry.js
         // `on\(("|')[^'"]+("|'), *("|')`
-        const jBody = $(body); // eslint-disable-line no-undef
-        jBody.on(
-          "click",
-          "a.content-link",
-          window.TextEditor._onClickEntityLink !== undefined
-            ? window.TextEditor._onClickEntityLink
-            : window.TextEditor._onClickContentLink
-        );
-        jBody.on(
-          "dragstart",
-          "a.content-link",
-          window.TextEditor._onDragEntityLink !== undefined
-            ? window.TextEditor._onDragEntityLink
-            : window.TextEditor._onDragContentLink
-        );
-        jBody.on(
-          "click",
-          "a.inline-roll",
-          window.TextEditor._onClickInlineRoll
-        );
+        // Only attach jQuery delegated events for ApplicationV1
+        if (!isApplicationV2) {
+          const jBody = $(body); // eslint-disable-line no-undef
+          jBody.on(
+            "click",
+            "a.content-link",
+            window.TextEditor._onClickEntityLink !== undefined
+              ? window.TextEditor._onClickEntityLink
+              : window.TextEditor._onClickContentLink
+          );
+          jBody.on(
+            "dragstart",
+            "a.content-link",
+            window.TextEditor._onDragEntityLink !== undefined
+              ? window.TextEditor._onDragEntityLink
+              : window.TextEditor._onDragContentLink
+          );
+          jBody.on(
+            "click",
+            "a.inline-roll",
+            window.TextEditor._onClickInlineRoll
+          );
+        }
       }
 
       popout.game = game; // eslint-disable-line no-undef
-      popout.tooltip_manager.tooltip =
-        popout.document.getElementById("tooltip");
-      popout.tooltip_manager.activateEventListeners();
+      
+      // Only try to setup tooltip manager if it exists
+      if (popout.tooltip_manager && popout.document.getElementById("tooltip")) {
+        popout.tooltip_manager.tooltip = popout.document.getElementById("tooltip");
+        popout.tooltip_manager.activateEventListeners();
+      }
 
-      this.log("Final node", node, app);
-      Hooks.callAll("PopOut:loaded", app, node); // eslint-disable-line no-undef
+      this.log("Final node", state.node, app);
+      Hooks.callAll("PopOut:loaded", app, state.node); // eslint-disable-line no-undef
     });
 
     // -------------------- Install intercept methods ----------------
@@ -852,7 +1170,10 @@ class PopoutModule {
       popout.focus();
       const result = oldBringToTop.apply(app, args);
       // In a popout we always want the base sheet to be at the back.
-      app.element[0].style.zIndex = 0;
+      const appElement = this.getAppElement(app);
+      if (appElement) {
+        appElement.style.zIndex = 0;
+      }
       return result;
     };
 
@@ -879,24 +1200,24 @@ class PopoutModule {
 
     const oldMinimize = app.minimize.bind(app);
     app.minimize = (...args) => {
-      this.log("Trying to focus main window.", app); // Doesn't appear to work due to popout blockers.
-      popout._rootWindow.focus();
-      if (popout._rootWindow.getAttention) {
-        popout._rootWindow.getAttention();
-      }
-      return oldMinimize.apply(app, args);
+      this.log("Intercepted minimize on popped out app - ignoring:", app.constructor.name);
+      // Don't minimize popped out applications (e.g., during template placement)
+      // Just return without calling the original minimize
+      return;
     };
 
     const oldMaximize = app.maximize.bind(app);
     app.maximize = (...args) => {
+      this.log("Intercepted maximize on popped out app - focusing popout instead:", app.constructor.name);
+      // Don't maximize popped out applications, just focus the popout window
       popout.focus();
-      this.log("Trying to focus popout.", popout);
-      return oldMaximize.apply(app, args);
+      return;
     };
 
     const oldSetPosition = app.setPosition.bind(app);
     app.setPosition = (...args) => {
-      if (this.poppedOut.has(app.appId)) {
+      const appId = app.appId || app.id;
+      if (this.poppedOut.has(appId)) {
         this.log(
           "Intercepted application setting position",
           app.constructor.name
@@ -912,7 +1233,8 @@ class PopoutModule {
     state.minimize = oldMinimize;
     state.maximize = oldMaximize;
     state.close = oldClose;
-    this.poppedOut.set(app.appId, state);
+    const finalAppId = app.appId || app.id;
+    this.poppedOut.set(finalAppId, state);
     Hooks.callAll("PopOut:popout", app, popout); // eslint-disable-line no-undef
   }
 
@@ -928,6 +1250,62 @@ class PopoutModule {
 Hooks.on("ready", () => {
   PopoutModule.singleton = new PopoutModule();
   PopoutModule.singleton.init();
+
+  // Add ApplicationV2 support for v13 using the official getHeaderControls hook
+  PopoutModule.singleton.log("Setting up ApplicationV2 hooks after ready...");
+  PopoutModule.singleton.log("ApplicationV2 class available:", !!foundry.applications?.ApplicationV2);
+  PopoutModule.singleton.log("foundry.applications keys:", Object.keys(foundry.applications));
+  PopoutModule.singleton.log("foundry.applications.api keys:", foundry.applications.api ? Object.keys(foundry.applications.api) : "no api");
+  PopoutModule.singleton.log("foundry.applications.apps keys:", foundry.applications.apps ? Object.keys(foundry.applications.apps) : "no apps");
+  PopoutModule.singleton.log("Looking for ApplicationV2 in global scope:", !!globalThis.ApplicationV2);
+  PopoutModule.singleton.log("Looking for ApplicationV2 in foundry scope:", !!foundry.ApplicationV2);
+  
+  // Add ApplicationV2 support for v13 using instance interception (reliable method)
+  if (foundry?.applications?.instances) {
+    const instances = foundry.applications.instances;
+    const originalSet = instances.set.bind(instances);
+    const originalDelete = instances.delete.bind(instances);
+    
+    instances.set = function(id, app) {
+      // Call the original set method
+      const result = originalSet(id, app);
+      
+      // Check if this is a popout-able application
+      PopoutModule.singleton.log("ApplicationV2 instance added:", app.constructor.name);
+      
+      // Only process apps that have popOut capability
+      // Note: popOut defaults to true if undefined in ApplicationV2
+      if (
+        app &&
+        app.options &&
+        app.options.popOut !== false && // Allow undefined (defaults to true)
+        !app.options.popOutModuleDisable
+      ) {
+        // Defer to ensure the app is rendered
+        setTimeout(() => {
+          PopoutModule.singleton.addPopout(app).catch((err) => PopoutModule.singleton.log("Error adding popout to ApplicationV2:", err));
+        }, 100);
+      }
+      
+      return result;
+    };
+    
+    instances.delete = function(id) {
+      // Clean up our poppedOut map if the app is deleted
+      if (PopoutModule.singleton.poppedOut.has(id)) {
+        const state = PopoutModule.singleton.poppedOut.get(id);
+        if (state && state.window && !state.window.closed) {
+          state.window.close();
+        }
+        PopoutModule.singleton.poppedOut.delete(id);
+      }
+      
+      // Call the original delete method
+      return originalDelete(id);
+    };
+    
+    PopoutModule.singleton.log("Installed ApplicationV2 method overrides");
+  }
 
   // eslint-disable-next-line no-unused-vars
   Hooks.on("PopOut:loaded", async (app, node) => {
