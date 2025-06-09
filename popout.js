@@ -7,11 +7,10 @@ class PopoutModule {
     this.MAX_TIMEOUT = 1000; // ms
     // Random id to prevent collision with other modules;
     // Use the new v12+ API if available, fallback to global for older versions
-    this.ID = (foundry?.utils?.randomID || randomID)(24);  
+    this.ID = (foundry?.utils?.randomID || randomID)(24);
   }
 
   log(msg, ...args) {
-     
     if (game && game.settings.get("popout", "verboseLogs")) {
       const color = "background: #6699ff; color: #000; font-size: larger;";
       console.debug(`%c PopoutModule: ${msg}`, color, ...args);
@@ -54,7 +53,6 @@ class PopoutModule {
   }
 
   async init() {
-     
     game.settings.register("popout", "showButton", {
       name: game.i18n.localize("POPOUT.showButton"),
       scope: "client",
@@ -89,11 +87,10 @@ class PopoutModule {
       name: "Enable more module logging.",
       hint: "Enables more verbose module logging. This is useful for debugging the module. But otherwise should be left off.",
       scope: "client",
-      config: true,
-      default: true,
+      config: false,
+      default: false,
       type: Boolean,
     });
-     
 
     // We replace the games window registry with a proxy object so we can intercept
     // every new application window creation event.
@@ -121,8 +118,8 @@ class PopoutModule {
         return result;
       },
     };
-    ui.windows = new Proxy(ui.windows, handler);  
-    this.log("Installed window interceptor", ui.windows);  
+    ui.windows = new Proxy(ui.windows, handler);
+    this.log("Installed window interceptor", ui.windows);
 
     // ApplicationV2 hooks will be registered after init in the ready hook below
 
@@ -131,7 +128,7 @@ class PopoutModule {
     // In theory this might have performance issues, but I don't care at this point.
     // And it does fix the problem with prosemirror, and will help with any other modules making
     // the same mistake.
-     
+
     if (game.release.generation >= 10) {
       const oldGetElementById = document.getElementById.bind(document);
       document.getElementById = function (id) {
@@ -210,7 +207,7 @@ class PopoutModule {
     // are loaded into the frame. Otherwise our popouts will not be able to access
     // the lazy loaded JavaScript mce plugins.
     // This will affect any module that lazy loads JavaScript. And require special handling.
-     
+
     const elem = $(
       `<div style="display: none;"><p id="mce_init"> foo </p></div>`,
     );
@@ -218,7 +215,6 @@ class PopoutModule {
     const config = { target: elem[0], plugins: CONFIG.TinyMCE.plugins };
     const editor = await tinyMCE.init(config);
     editor[0].remove();
-     
   }
 
   async addPopout(app) {
@@ -243,20 +239,11 @@ class PopoutModule {
     const isV2App =
       app.state !== undefined && foundry?.applications?.ApplicationV2;
 
-    this.log(
-      "App type detection - V1:",
-      isV1App,
-      "V2:",
-      isV2App,
-      "State:",
-      app._state || app.state,
-    );
-
     while (waitRender-- > 0) {
       let isRendered = false;
 
       if (isV1App) {
-        isRendered = app._state === Application.RENDER_STATES.RENDERED;  
+        isRendered = app._state === Application.RENDER_STATES.RENDERED;
       } else if (isV2App) {
         isRendered =
           app.state ===
@@ -274,7 +261,7 @@ class PopoutModule {
     // Check final render state
     let isRendered = false;
     if (isV1App) {
-      isRendered = app._state === Application.RENDER_STATES.RENDERED;  
+      isRendered = app._state === Application.RENDER_STATES.RENDERED;
     } else if (isV2App) {
       isRendered =
         app.state === foundry.applications.ApplicationV2.RENDER_STATES.RENDERED;
@@ -284,12 +271,7 @@ class PopoutModule {
     }
 
     if (!isRendered) {
-      this.log(
-        "Timeout out waiting for app to render - V1:",
-        isV1App,
-        "V2:",
-        isV2App,
-      );
+      this.log("Timeout out waiting for app to render");
       return;
     }
 
@@ -300,7 +282,7 @@ class PopoutModule {
     let domID = this.appToID(app);
     if (!document.getElementById(domID)) {
       // Don't create a second link on re-renders;
-       
+
       // class "header-button" is for compatibility with 🦋 Monarch
       let buttonText = game.i18n.localize("POPOUT.PopOut");
       if (game && game.settings.get("popout", "iconOnly")) {
@@ -311,19 +293,17 @@ class PopoutModule {
           "POPOUT.PopOut",
         )}"></i>${buttonText}</a>`,
       );
-       
 
       link.on("click", () => this.onPopoutClicked(app));
 
       // Handle both ApplicationV1 and ApplicationV2
-       
+
       if (game && game.settings.get("popout", "showButton")) {
         let attached = false;
 
         if (app.element && app.element.find) {
           // ApplicationV1 - has jQuery element
           app.element.find(".window-title").after(link);
-          this.log("Attached button to V1 app");
           attached = true;
         } else {
           // ApplicationV2 - try to find element by ID in DOM
@@ -342,13 +322,6 @@ class PopoutModule {
             appElement =
               app.element instanceof jQuery ? app.element[0] : app.element;
           }
-
-          this.log(
-            "V2 app element search - ID:",
-            appId,
-            "Element:",
-            appElement,
-          );
 
           if (appElement) {
             // For ApplicationV2, add to header controls area
@@ -374,18 +347,9 @@ class PopoutModule {
               );
 
               closeButton.parentNode.insertBefore(headerButton, closeButton);
-              this.log("Attached button to V2 app header");
               attached = true;
-            } else {
-              this.log("Could not find close button in V2 app header");
             }
-          } else {
-            this.log("Could not find app element for V2 app");
           }
-        }
-
-        if (!attached) {
-          this.log("Could not attach button to app");
         }
       }
     }
@@ -399,26 +363,13 @@ class PopoutModule {
 
   getAppElement(app) {
     const isV2App = app.id && !app.appId; // V2 apps use 'id', V1 apps use 'appId'
-    this.log(
-      "Getting element for app - V2:",
-      isV2App,
-      "ID:",
-      app.id || app.appId,
-    );
 
     if (isV2App) {
       // ApplicationV2 - use ID to find the element
       const appId = app.id;
-      this.log("Looking for ApplicationV2 element with ID:", appId);
-
       if (appId) {
         const element = document.getElementById(appId);
         if (element) {
-          this.log(
-            "Found ApplicationV2 element by ID:",
-            element.tagName,
-            element.className,
-          );
           return element;
         }
       }
@@ -427,17 +378,11 @@ class PopoutModule {
       if (app._element) {
         const element =
           app._element instanceof jQuery ? app._element[0] : app._element;
-        this.log(
-          "Found ApplicationV2 element via app._element:",
-          element?.tagName,
-          element?.className,
-        );
         return element;
       }
     } else {
       // ApplicationV1 - use jQuery element
       if (app.element && app.element[0]) {
-        this.log("Found ApplicationV1 element via app.element");
         return app.element[0];
       }
 
@@ -446,17 +391,11 @@ class PopoutModule {
       if (appId) {
         const element = document.getElementById(appId);
         if (element) {
-          this.log(
-            "Found ApplicationV1 element by ID:",
-            element.tagName,
-            element.className,
-          );
           return element;
         }
       }
     }
 
-    this.log("Could not find element for app");
     return null;
   }
 
@@ -510,30 +449,13 @@ class PopoutModule {
     for (let state of this.poppedOut.values()) {
       if (state.window._popout_last_click > deadline) {
         // Check for both v1 Dialog class and v2 dialog apps
-        const isV1Dialog = app instanceof Dialog;  
+        const isV1Dialog = app instanceof Dialog;
         const isV2Dialog =
           app.id &&
           !app.appId && // Must be ApplicationV2
           (app.constructor.name.includes("Dialog") ||
             app.constructor.name.includes("Config") ||
             app.constructor.name.includes("Roll")); // Common dialog patterns
-
-        this.log(
-          "Dialog detection - V1:",
-          isV1Dialog,
-          "V2:",
-          isV2Dialog,
-          "Class:",
-          app.constructor.name,
-        );
-
-        // Additional logging for debugging mismatched apps
-        if (isV2Dialog) {
-          this.log(
-            "V2 Dialog pattern matched - will move to popout:",
-            app.constructor.name,
-          );
-        }
 
         if (isV1Dialog || isV2Dialog) {
           this.log(
@@ -579,7 +501,6 @@ class PopoutModule {
     // We manually intercept the setPosition function of the dialog app in
     // order to handle re-renders that change the position.
     // In particular the FilePicker application.
-     
 
     const oldClose = app.close.bind(app);
     const oldSetPosition = app.setPosition.bind(app);
@@ -598,7 +519,7 @@ class PopoutModule {
     parent.node.parentNode.insertBefore(node, parent.node.nextSibling);
     node.style.display = setDisplay;
     parent.children.push(app);
-    Hooks.callAll("PopOut:dialog", app, parent);  
+    Hooks.callAll("PopOut:dialog", app, parent);
   }
 
   createDocument() {
@@ -673,7 +594,6 @@ class PopoutModule {
       height: "100%",
     };
 
-     
     if (game.settings.get("popout", "useWindows")) {
       let position, width, height, left, top, element;
 
@@ -706,9 +626,7 @@ class PopoutModule {
         }
       }
 
-       
       if (element && game && game.settings.get("popout", "trueBoundingBox")) {
-         
         const bounding = this.recursiveBoundingBox(element);
         if (bounding.x < left) {
           offsets.left = `${left - bounding.x}`;
@@ -766,7 +684,7 @@ class PopoutModule {
   onPopoutClicked(app) {
     // Check if popout in Electron window
     if (navigator.userAgent.toLowerCase().indexOf(" electron/") !== -1) {
-      ui.notifications.warn(game.i18n.localize("POPOUT.electronWarning"));  
+      ui.notifications.warn(game.i18n.localize("POPOUT.electronWarning"));
       return;
     }
 
@@ -776,7 +694,6 @@ class PopoutModule {
     const isV2App = foundry?.applications?.instances?.has(app.id);
 
     if (!isV1App && !isV2App) {
-       
       this.log("Attempt to open not a user interface window.");
       return;
     }
@@ -811,7 +728,7 @@ class PopoutModule {
       node: appElement,
       position: foundry?.utils?.duplicate
         ? foundry.utils.duplicate(app.position)
-        : duplicate(app.position),  
+        : duplicate(app.position),
       minimized: app._minimized,
       display: appElement.style.display,
       css: appElement.style.cssText,
@@ -831,7 +748,7 @@ class PopoutModule {
       this.log("Failed to open window", popout);
       state.node.style.display = state.display;
       state.node._minimized = false;
-      ui.notifications.warn(game.i18n.localize("POPOUT.failureWarning"));  
+      ui.notifications.warn(game.i18n.localize("POPOUT.failureWarning"));
       return;
     }
 
@@ -869,7 +786,6 @@ class PopoutModule {
       for (const child of [...state.header.children]) {
         if (child.id == domID) {
           // Change Close button
-           
 
           let buttonText = game.i18n.localize("POPOUT.PopIn");
           // ApplicationV2 apps always use icon-only buttons
@@ -889,7 +805,6 @@ class PopoutModule {
               popout._popout_dont_close = true;
               popout.close();
             });
-           
         }
         shallowHeader.appendChild(child);
       }
@@ -915,7 +830,7 @@ class PopoutModule {
 
     // -------------------- Add unload handlers --------------------
 
-    Hooks.callAll("PopOut:loading", app, popout);  
+    Hooks.callAll("PopOut:loading", app, popout);
 
     window.addEventListener("unload", async (event) => {
       this.log("Unload event", event);
@@ -997,11 +912,11 @@ class PopoutModule {
 
         // Force a re-render or close it
         if (popout._popout_dont_close) {
-          Hooks.callAll("PopOut:popin", app);  
+          Hooks.callAll("PopOut:popin", app);
           await app.render(true);
           this.addPopout(app);
         } else {
-          Hooks.callAll("PopOut:close", app, node);  
+          Hooks.callAll("PopOut:close", app, node);
           await app.close();
         }
         await popout.close();
@@ -1040,7 +955,7 @@ class PopoutModule {
 
       const opened = window.open(a.href, "_blank");
       if (!opened) {
-        ui.notifications.warn(game.i18n.localize("POPOUT.failureWarning"));  
+        ui.notifications.warn(game.i18n.localize("POPOUT.failureWarning"));
       }
     });
 
@@ -1054,10 +969,9 @@ class PopoutModule {
         popout.moveTo(50, 50);
       }
 
-       
       if (game.release.generation >= 10) {
         const FontConfigClass =
-          foundry?.applications?.settings?.menus?.FontConfig || FontConfig;  
+          foundry?.applications?.settings?.menus?.FontConfig || FontConfig;
         const allFonts = FontConfigClass._collectDefinitions();
         const families = new Set();
         for (const definitions of allFonts) {
@@ -1069,7 +983,7 @@ class PopoutModule {
           if (families.has(font.family)) {
             try {
               popout.document.fonts.add(font);
-            } catch {}  
+            } catch {}
           }
         });
       }
@@ -1080,10 +994,7 @@ class PopoutModule {
       const isApplicationV2 = app.id && !app.appId; // V2 apps use 'id', V1 apps use 'appId'
 
       if (isApplicationV2) {
-        this.log("Starting ApplicationV2 DOM handling...");
-
         // Monkey-patch D&D5e custom elements to handle adoptedStyleSheets gracefully
-        this.log("Patching custom elements for safe adoption...");
         const customElements = state.node.querySelectorAll(
           "slide-toggle, dnd5e-checkbox, proficiency-cycle, dnd5e-icon",
         );
@@ -1107,12 +1018,8 @@ class PopoutModule {
 
         try {
           const adoptedNode = targetDoc.adoptNode(state.node);
-          this.log("Successfully adopted ApplicationV2 node");
-
           body.style.overflow = "auto";
           body.append(adoptedNode);
-          this.log("Successfully appended adopted node");
-
           // Update state to reference the adopted node
           state.node = adoptedNode;
         } catch (error) {
@@ -1176,7 +1083,7 @@ class PopoutModule {
       });
 
       // COMPAT(posnet: 2022-09-17) v9
-       
+
       if (game.release.generation < 10) {
         // From: TextEditor.activateListeners();
         // These event listeners don't get migrated because they are attached to a jQuery
@@ -1184,7 +1091,7 @@ class PopoutModule {
         // event handler will also fail. But that is bad practice.
         // The following regex will find examples of delegated event handlers in foundry.js
         // `on\(("|')[^'"]+("|'), *("|')`
-        const jBody = $(body);  
+        const jBody = $(body);
         jBody.on(
           "click",
           "a.entity-link",
@@ -1211,7 +1118,7 @@ class PopoutModule {
         // `on\(("|')[^'"]+("|'), *("|')`
         // Only attach jQuery delegated events for ApplicationV1
         if (!isApplicationV2) {
-          const jBody = $(body);  
+          const jBody = $(body);
           jBody.on(
             "click",
             "a.content-link",
@@ -1234,7 +1141,7 @@ class PopoutModule {
         }
       }
 
-      popout.game = game;  
+      popout.game = game;
 
       // Only try to setup tooltip manager if it exists
       if (popout.tooltip_manager && popout.document.getElementById("tooltip")) {
@@ -1243,8 +1150,7 @@ class PopoutModule {
         popout.tooltip_manager.activateEventListeners();
       }
 
-      this.log("Final node", state.node, app);
-      Hooks.callAll("PopOut:loaded", app, state.node);  
+      Hooks.callAll("PopOut:loaded", app, state.node);
     });
 
     // -------------------- Install intercept methods ----------------
@@ -1272,12 +1178,12 @@ class PopoutModule {
     app.close = (...args) => {
       this.log("Intercepted popout close.", app);
       // Prevent closing of popped out windows with ESC in main page
-       
+
       if (game.keyboard.isDown !== undefined) {
         // COMPAT(posnet: 2022-09-17) v9 compat
-        if (game.keyboard.isDown("Escape")) return;  
+        if (game.keyboard.isDown("Escape")) return;
       } else {
-        if (game.keyboard.downKeys.has("Escape")) return;  
+        if (game.keyboard.downKeys.has("Escape")) return;
       }
       popout.close();
       return oldClose.apply(app, args);
@@ -1326,7 +1232,7 @@ class PopoutModule {
     state.close = oldClose;
     const finalAppId = app.appId || app.id;
     this.poppedOut.set(finalAppId, state);
-    Hooks.callAll("PopOut:popout", app, popout);  
+    Hooks.callAll("PopOut:popout", app, popout);
   }
 
   // Public API
@@ -1337,41 +1243,11 @@ class PopoutModule {
   }
 }
 
- 
 Hooks.on("ready", () => {
   PopoutModule.singleton = new PopoutModule();
   PopoutModule.singleton.init();
 
-  // Add ApplicationV2 support for v13 using the official getHeaderControls hook
-  PopoutModule.singleton.log("Setting up ApplicationV2 hooks after ready...");
-  PopoutModule.singleton.log(
-    "ApplicationV2 class available:",
-    !!foundry.applications?.ApplicationV2,
-  );
-  PopoutModule.singleton.log(
-    "foundry.applications keys:",
-    Object.keys(foundry.applications),
-  );
-  PopoutModule.singleton.log(
-    "foundry.applications.api keys:",
-    foundry.applications.api ? Object.keys(foundry.applications.api) : "no api",
-  );
-  PopoutModule.singleton.log(
-    "foundry.applications.apps keys:",
-    foundry.applications.apps
-      ? Object.keys(foundry.applications.apps)
-      : "no apps",
-  );
-  PopoutModule.singleton.log(
-    "Looking for ApplicationV2 in global scope:",
-    !!globalThis.ApplicationV2,
-  );
-  PopoutModule.singleton.log(
-    "Looking for ApplicationV2 in foundry scope:",
-    !!foundry.ApplicationV2,
-  );
-
-  // Add ApplicationV2 support for v13 using instance interception (reliable method)
+  // Add ApplicationV2 support for v13 using instance interception
   if (foundry?.applications?.instances) {
     const instances = foundry.applications.instances;
     const originalSet = instances.set.bind(instances);
@@ -1382,10 +1258,6 @@ Hooks.on("ready", () => {
       const result = originalSet(id, app);
 
       // Check if this is a popout-able application
-      PopoutModule.singleton.log(
-        "ApplicationV2 instance added:",
-        app.constructor.name,
-      );
 
       // Only process apps that have popOut capability
       // Note: popOut defaults to true if undefined in ApplicationV2
@@ -1424,11 +1296,9 @@ Hooks.on("ready", () => {
       // Call the original delete method
       return originalDelete(id);
     };
-
-    PopoutModule.singleton.log("Installed ApplicationV2 method overrides");
+    PopoutModule.singleton.log("ApplicationV2 interception initialized");
   }
 
-   
   Hooks.on("PopOut:loaded", async (app, node) => {
     // PDFoundry
     if (window.ui.PDFoundry !== undefined) {
@@ -1446,7 +1316,6 @@ Hooks.on("ready", () => {
     return;
   });
 
-   
   Hooks.on("PopOut:close", async (app, node) => {
     // PDFoundry
     if (app.pdfData !== undefined) {
@@ -1457,4 +1326,3 @@ Hooks.on("ready", () => {
     return;
   });
 });
- 
