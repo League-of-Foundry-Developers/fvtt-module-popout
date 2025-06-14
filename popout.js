@@ -994,7 +994,8 @@ class PopoutModule {
       const isApplicationV2 = app.id && !app.appId; // V2 apps use 'id', V1 apps use 'appId'
 
       if (isApplicationV2) {
-        // Monkey-patch D&D5e custom elements to handle adoptedStyleSheets gracefully
+        // FIXME(aposney: 2025-06-16) Not convinced this is an issue, it does cause errors in logs, but leaving
+        // // Monkey-patch D&D5e custom elements to handle adoptedStyleSheets gracefully
         const customElements = state.node.querySelectorAll(
           "slide-toggle, dnd5e-checkbox, proficiency-cycle, dnd5e-icon",
         );
