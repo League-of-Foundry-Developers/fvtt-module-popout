@@ -1120,20 +1120,22 @@ class PopoutModule {
         // Only attach jQuery delegated events for ApplicationV1
         if (!isApplicationV2) {
           const jBody = $(body);
-          jBody.on(
-            "click",
-            "a.content-link",
-            window.TextEditor._onClickEntityLink !== undefined
-              ? window.TextEditor._onClickEntityLink
-              : window.TextEditor._onClickContentLink,
-          );
-          jBody.on(
-            "dragstart",
-            "a.content-link",
-            window.TextEditor._onDragEntityLink !== undefined
-              ? window.TextEditor._onDragEntityLink
-              : window.TextEditor._onDragContentLink,
-          );
+          if (game.release.generation < 13) {
+            jBody.on(
+              "click",
+              "a.content-link",
+              window.TextEditor._onClickEntityLink !== undefined
+                ? window.TextEditor._onClickEntityLink
+                : window.TextEditor._onClickContentLink,
+            );
+            jBody.on(
+              "dragstart",
+              "a.content-link",
+              window.TextEditor._onDragEntityLink !== undefined
+                ? window.TextEditor._onDragEntityLink
+                : window.TextEditor._onDragContentLink,
+            );
+          }
           jBody.on(
             "click",
             "a.inline-roll",
