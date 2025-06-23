@@ -1043,6 +1043,7 @@ class PopoutModule {
                 margin: 0 !important;
                 border-radius: 0 !important;
                 cursor: auto !important;
+                max-height: 100vh;
             `; // Fullscreen
       app.setPosition({ width: "100%", height: "100%", top: 0, left: 0 });
       app._minimized = null;
