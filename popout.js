@@ -275,6 +275,18 @@ class PopoutModule {
       return;
     }
 
+    // [1-Jul-2025] add ignore for 'token-hud' element to prevent
+    // right-click context menu from being "stolen" from the canvas
+    // and placed on the character sheet that is popped out.
+    const appElement = app.element instanceof jQuery ? app.element[0] : app.element;
+
+    if (appElement && appElement.id === "token-hud") {
+      this.log("Ignoring token-hud form", app);
+      return; // Skip adding the popout button for this form
+    }
+    // --- END: Add check for token-hud form ID ---
+
+
     if (this.handleChildDialog(app)) {
       return;
     }
