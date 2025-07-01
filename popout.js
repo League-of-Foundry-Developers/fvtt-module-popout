@@ -232,12 +232,19 @@ class PopoutModule {
       return;
     }
 
+
+    // --- START: Add check for token-hud form ID ---
+    // This check needs to happen after the app is potentially rendered,
+    // as the element might not exist before rendering.
+    // We will check the app's element for the specific ID.
+    // We need to wait for the app to be rendered first.
+
     let waitRender = Math.floor(this.MAX_TIMEOUT / this.TIMEOUT_INTERVAL);
 
     // Check render state for both v1 and v2 apps
     const isV1App = app._state !== undefined;
     const isV2App =
-      app.state !== undefined && foundry?.applications?.ApplicationV2;
+    app.state !== undefined && foundry?.applications?.ApplicationV2;
 
     while (waitRender-- > 0) {
       let isRendered = false;
@@ -246,8 +253,8 @@ class PopoutModule {
         isRendered = app._state === Application.RENDER_STATES.RENDERED;
       } else if (isV2App) {
         isRendered =
-          app.state ===
-          foundry.applications.ApplicationV2.RENDER_STATES.RENDERED;
+        app.state ===
+        foundry.applications.ApplicationV2.RENDER_STATES.RENDERED;
       } else {
         // For apps that don't have clear state, check if they have an element
         isRendered = !!(app.element || app._element);
@@ -264,7 +271,7 @@ class PopoutModule {
       isRendered = app._state === Application.RENDER_STATES.RENDERED;
     } else if (isV2App) {
       isRendered =
-        app.state === foundry.applications.ApplicationV2.RENDER_STATES.RENDERED;
+      app.state === foundry.applications.ApplicationV2.RENDER_STATES.RENDERED;
     } else {
       // For apps that don't have clear state, check if they have an element
       isRendered = !!(app.element || app._element);
@@ -274,6 +281,18 @@ class PopoutModule {
       this.log("Timeout out waiting for app to render");
       return;
     }
+
+    // Now that the app is rendered, check its element ID
+    // Foundry VTT Application instances have an 'element' property
+    // which is a jQuery object (V1) or an HTMLElement (V2).
+    const appElement = app.element instanceof jQuery ? app.element[0] : app.element;
+
+    if (appElement && appElement.id === "token-hud") {
+      this.log("Ignoring token-hud form", app);
+      return; // Skip adding the popout button for this form
+    }
+    // --- END: Add check for token-hud form ID ---
+
 
     if (this.handleChildDialog(app)) {
       return;
@@ -316,11 +335,11 @@ class PopoutModule {
           }
           if (!appElement && app._element) {
             appElement =
-              app._element instanceof jQuery ? app._element[0] : app._element;
+            app._element instanceof jQuery ? app._element[0] : app._element;
           }
           if (!appElement && app.element) {
             appElement =
-              app.element instanceof jQuery ? app.element[0] : app.element;
+            app.element instanceof jQuery ? app.element[0] : app.element;
           }
 
           if (appElement) {
@@ -332,22 +351,22 @@ class PopoutModule {
               const headerButton = document.createElement("button");
               headerButton.id = domID;
               headerButton.className =
-                "header-control icon popout-module-button";
-              headerButton.type = "button";
-              headerButton.innerHTML =
-                '<i class="fas fa-external-link-alt"></i>';
-              headerButton.setAttribute(
-                "data-tooltip",
-                game.i18n.localize("POPOUT.PopOut"),
-              );
+              "header-control icon popout-module-button";
+            headerButton.type = "button";
+            headerButton.innerHTML =
+            '<i class="fas fa-external-link-alt"></i>';
+      headerButton.setAttribute(
+        "data-tooltip",
+        game.i18n.localize("POPOUT.PopOut"),
+      );
 
-              // Add click handler
-              headerButton.addEventListener("click", () =>
-                this.onPopoutClicked(app),
-              );
+      // Add click handler
+      headerButton.addEventListener("click", () =>
+      this.onPopoutClicked(app),
+      );
 
-              closeButton.parentNode.insertBefore(headerButton, closeButton);
-              attached = true;
+      closeButton.parentNode.insertBefore(headerButton, closeButton);
+      attached = true;
             }
           }
         }
@@ -798,7 +817,7 @@ class PopoutModule {
             .html(
               `<i class="fas fa-sign-in-alt" title="${game.i18n.localize(
                 "POPOUT.PopIn",
-              )}"></i>${buttonText}`,
+              )}"></i>${buttonText}`,$
             )
             .off("click")
             .on("click", (event) => {
@@ -834,7 +853,7 @@ class PopoutModule {
 
     window.addEventListener("unload", async (event) => {
       this.log("Unload event", event);
-      const appId = app.appId || app.id;
+      const appId = app.appId || app.id;hu
       if (this.poppedOut.has(appId)) {
         await popout.close();
       }
