@@ -17,6 +17,63 @@ class PopoutModule {
     }
   }
 
+  isSystemUI(app) {
+    // Check if we're on v13 or later
+    const isV13 =
+      game.release?.generation >= 13 ||
+      (foundry.utils?.isNewerVersion &&
+        foundry.utils.isNewerVersion(game.version, "13.0.0"));
+
+    // COMPAT(v13): System UI elements were getting popout buttons and stealing events/focus
+    if (!isV13) return false;
+
+    // Get the app element to check ID
+    const appElement =
+      app.element instanceof jQuery
+        ? app.element[0]
+        : app._element instanceof jQuery
+          ? app._element[0]
+          : app._element;
+
+    // Check for system UI elements that should never be popped out
+    return (
+      // Singleton UI elements
+      app === ui.notifications ||
+      app === ui.context ||
+      app === ui.menu ||
+      app === ui.nav ||
+      app === ui.controls ||
+      app === ui.hotbar ||
+      app === ui.pause ||
+      app === ui.players ||
+      // HUD elements by class name
+      app.constructor.name.includes("HUD") ||
+      app.constructor.name.includes("Controls") ||
+      app.constructor.name.includes("Navigation") ||
+      app.constructor.name === "ContextMenu" ||
+      app.constructor.name === "Notifications" ||
+      app.constructor.name === "Hotbar" ||
+      app.constructor.name === "SceneControls" ||
+      app.constructor.name === "MainMenu" ||
+      app.constructor.name === "UserConfig" ||
+      // Check element IDs (including token-hud)
+      (appElement &&
+        (appElement.id === "token-hud" ||
+          appElement.id === "tile-hud" ||
+          appElement.id === "drawing-hud" ||
+          appElement.id === "wall-hud" ||
+          appElement.id === "light-hud" ||
+          appElement.id === "sound-hud" ||
+          appElement.id === "template-hud" ||
+          appElement.id === "notifications" ||
+          appElement.id === "context-menu" ||
+          appElement.id === "hotbar")) ||
+      // Common dialog patterns that might be system UI
+      app.constructor.name === "Dialog" ||
+      app.constructor.name === "Application"
+    );
+  }
+
   recursiveBoundingBox(elem) {
     const maxRectReducer = (acc, elem) => {
       if (elem.width > 0 && elem.height > 0) {
@@ -229,6 +286,12 @@ class PopoutModule {
     if (this.poppedOut.has(appIdentifier)) {
       this.log("Already popped out");
       this.poppedOut.get(appIdentifier).window.focus();
+      return;
+    }
+
+    // Check if this is a system UI element that shouldn't be popped out
+    if (this.isSystemUI(app)) {
+      this.log("Ignoring system UI element", app.constructor.name);
       return;
     }
 
@@ -472,6 +535,12 @@ class PopoutModule {
   }
 
   moveDialog(app, parentApp) {
+    // Don't move system UI dialogs
+    if (this.isSystemUI(app)) {
+      this.log("Not moving system UI dialog", app.constructor.name);
+      return;
+    }
+
     const parentId = parentApp.appId || parentApp.id;
     const parent = this.poppedOut.get(parentId);
     const dialogNode = this.getAppElement(app);
@@ -1043,6 +1112,7 @@ class PopoutModule {
                 margin: 0 !important;
                 border-radius: 0 !important;
                 cursor: auto !important;
+                max-height: 100vh;
             `; // Fullscreen
       app.setPosition({ width: "100%", height: "100%", top: 0, left: 0 });
       app._minimized = null;
