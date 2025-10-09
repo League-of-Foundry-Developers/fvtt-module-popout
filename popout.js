@@ -1242,13 +1242,13 @@ class PopoutModule {
     };
 
     const oldRender = app.render.bind(app);
-    app.render = (...args) => {
+    app.render = async (...args) => {
       this.log("Intercepted popout render", app);
       return oldRender.apply(app, args);
     };
 
     const oldClose = app.close.bind(app);
-    app.close = (...args) => {
+    app.close = async (...args) => {
       this.log("Intercepted popout close.", app);
       // Prevent closing of popped out windows with ESC in main page
 
@@ -1263,7 +1263,7 @@ class PopoutModule {
     };
 
     const oldMinimize = app.minimize.bind(app);
-    app.minimize = (...args) => {
+    app.minimize = async (...args) => {
       this.log(
         "Intercepted minimize on popped out app - ignoring:",
         app.constructor.name,
@@ -1274,7 +1274,7 @@ class PopoutModule {
     };
 
     const oldMaximize = app.maximize.bind(app);
-    app.maximize = (...args) => {
+    app.maximize = async (...args) => {
       this.log(
         "Intercepted maximize on popped out app - focusing popout instead:",
         app.constructor.name,
