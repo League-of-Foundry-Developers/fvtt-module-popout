@@ -1109,7 +1109,9 @@ class PopoutModule {
         // ApplicationV1 - use the original adoption method
         const adoptedNode = targetDoc.adoptNode(state.node);
         body.style.overflow = "auto";
-        body.append(state.node);
+        body.append(adoptedNode);
+        // Update state to reference the adopted node (consistent with V2 path)
+        state.node = adoptedNode;
       }
 
       state.node.style.cssText = `
