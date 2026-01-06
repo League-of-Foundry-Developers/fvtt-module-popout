@@ -1,9 +1,5 @@
 node_modules
-yarn.lock
-yarn-error.log
-dist/*
 ref/
-v13.md
 .claude
 dnd5e
 
