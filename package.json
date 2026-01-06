@@ -1,6 +1,11 @@
 {
   "license": "CC-BY-4.0",
   "type": "module",
+  "scripts": {
+    "lint": "eslint popout.js",
+    "format:check": "prettier --check .",
+    "foundry:release": "node scripts/foundry-release.js"
+  },
   "devDependencies": {
     "eslint": "^9.28.0",
     "globals": "^16.2.0",
