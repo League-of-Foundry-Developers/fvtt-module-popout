@@ -206,40 +206,35 @@ class PopoutModule {
 
     // Define the override function that checks all windows including popouts
     const overrideHasFocus = () => {
-      if (!game.keyboard || typeof game.keyboard.hasFocus !== "function")
-        return false;
+      if (!game.keyboard) return false;
 
-      // Store the original hasFocus method
-      const originalHasFocus = game.keyboard.hasFocus.bind(game.keyboard);
-
-      // Check if we're on v13 or later
+      // Check if we're on v13 or later (hasFocus is a getter in v13, was a method in v12)
       const isV13 =
         game.release?.generation >= 13 ||
         (foundry.utils?.isNewerVersion &&
           foundry.utils.isNewerVersion(game.version, "13.0.0"));
 
-      // Override the hasFocus method to check popped out windows too
-      game.keyboard.hasFocus = () => {
-        // Helper function to check if an element has focus based on version
-        const checkElementFocus = (element) => {
-          if (!(element instanceof HTMLElement)) return false;
+      // Helper function to check if an element has focus based on version
+      const checkElementFocus = (element) => {
+        if (!(element instanceof HTMLElement)) return false;
 
-          if (isV13) {
-            // v13 logic with dataset and specific checks
-            if (["", "true"].includes(element.dataset.keyboardFocus))
-              return true;
-            if (element.dataset.keyboardFocus === "false") return false;
-            if (["INPUT", "SELECT", "TEXTAREA"].includes(element.tagName))
-              return true;
-            if (element.isContentEditable) return true;
-            if (element.tagName === "BUTTON" && element.form) return true;
-            return false;
-          } else {
-            // v12 logic - any focused HTMLElement counts
+        if (isV13) {
+          // v13 logic with dataset and specific checks
+          if (["", "true"].includes(element.dataset.keyboardFocus)) return true;
+          if (element.dataset.keyboardFocus === "false") return false;
+          if (["INPUT", "SELECT", "TEXTAREA"].includes(element.tagName))
             return true;
-          }
-        };
+          if (element.isContentEditable) return true;
+          if (element.tagName === "BUTTON" && element.form) return true;
+          return false;
+        } else {
+          // v12 logic - any focused HTMLElement counts
+          return true;
+        }
+      };
 
+      // Create the new hasFocus implementation that checks popouts
+      const newHasFocus = () => {
         // Check main document
         if (checkElementFocus(document.activeElement)) return true;
 
@@ -251,6 +246,20 @@ class PopoutModule {
 
         return false;
       };
+
+      // v13+ uses a getter property, v12 used a method - handle both
+      if (isV13) {
+        // Override the getter using Object.defineProperty
+        Object.defineProperty(game.keyboard, "hasFocus", {
+          get: newHasFocus,
+          configurable: true,
+        });
+      } else if (typeof game.keyboard.hasFocus === "function") {
+        // v12 and earlier - simple method override
+        game.keyboard.hasFocus = newHasFocus;
+      } else {
+        return false;
+      }
 
       return true;
     };
