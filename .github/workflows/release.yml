@@ -1,0 +1,70 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 2.22)'
+        required: true
+        type: string
+      release_notes:
+        description: 'Release notes (brief description of changes)'
+        required: true
+        type: string
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate version format
+        run: |
+          if ! echo "${{ inputs.version }}" | grep -qE '^[0-9]+\.[0-9]+$'; then
+            echo "Error: Version must be in format X.Y (e.g., 2.22)"
+            exit 1
+          fi
+
+      - name: Check tag doesn't exist
+        run: |
+          if git ls-remote --tags origin | grep -q "refs/tags/v${{ inputs.version }}$"; then
+            echo "Error: Tag v${{ inputs.version }} already exists"
+            exit 1
+          fi
+
+      - name: Update module.json
+        run: |
+          # Update version
+          sed -i 's/"version": "[^"]*"/"version": "${{ inputs.version }}"/' module.json
+
+          # Update download URL
+          sed -i 's|"download": "[^"]*"|"download": "https://github.com/${{ github.repository }}/archive/v${{ inputs.version }}.zip"|' module.json
+
+          # Verify changes
+          echo "Updated module.json:"
+          grep -E '"version"|"download"' module.json
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add module.json
+          git commit -m "Release v${{ inputs.version }}"
+
+      - name: Create and push tag
+        run: |
+          git tag "v${{ inputs.version }}"
+          git push origin HEAD:${{ github.ref_name }}
+          git push origin "v${{ inputs.version }}"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "v${{ inputs.version }}" \
+            --title "v${{ inputs.version }}" \
+            --notes "${{ inputs.release_notes }}"
