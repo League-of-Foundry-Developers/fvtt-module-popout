@@ -1131,26 +1131,26 @@ class PopoutModule {
       });
 
       // Forward keyboard events to main window for keybinding support
-      // NOTE: v13 changed the keyboard API, _handleKeyboardEvent is private/removed
+      // NOTE: v13 changed the keyboard API, #handleKeyboardEvent is now private
       popout.addEventListener("keydown", (event) => {
         if (window.keyboard && window.keyboard._handleKeyboardEvent) {
-          // v12 and earlier - use private method
+          // v12 and earlier - use internal method
           window.keyboard._handleKeyboardEvent(event, false);
-        } else if (game.keyboard && game.keyboard.onKeyDown) {
-          // v13+ - try public API
-          game.keyboard.onKeyDown(event);
+        } else if (game.keyboard && game.keyboard._processKeyboardContext) {
+          // v13+ - use protected _processKeyboardContext with static getKeyboardEventContext
+          const context = KeyboardManager.getKeyboardEventContext(event, false);
+          game.keyboard._processKeyboardContext(context);
         }
-        // For v13, if no API available, let the event bubble normally
       });
       popout.addEventListener("keyup", (event) => {
         if (window.keyboard && window.keyboard._handleKeyboardEvent) {
-          // v12 and earlier - use private method
+          // v12 and earlier - use internal method
           window.keyboard._handleKeyboardEvent(event, true);
-        } else if (game.keyboard && game.keyboard.onKeyUp) {
-          // v13+ - try public API
-          game.keyboard.onKeyUp(event);
+        } else if (game.keyboard && game.keyboard._processKeyboardContext) {
+          // v13+ - use protected _processKeyboardContext with static getKeyboardEventContext
+          const context = KeyboardManager.getKeyboardEventContext(event, true);
+          game.keyboard._processKeyboardContext(context);
         }
-        // For v13, if no API available, let the event bubble normally
       });
 
       // COMPAT(posnet: 2022-09-17) v9
