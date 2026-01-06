@@ -50,7 +50,7 @@ If you are a module developer have found that PopOut! is not working correctly o
 A second option is when creating an application or dialog, you can add the `popOutModuleDisable` attribute to it's options argument, this will also disable PopOut for that specific object. For example:
 
 ```js
-Dialog.prompt({ title: '', options: { popOutModuleDisable: true } });
+Dialog.prompt({ title: "", options: { popOutModuleDisable: true } });
 ```
 
 ### Sidebar (ChatLog...)
@@ -62,7 +62,9 @@ For example if you want to hide a chat card, you will have to do the following.
 ```js
 ui.chat.element.find(`.message[data-message-id=${data._id}]`).hide();
 if (ui.sidebar.popouts.chat) {
-    ui.sidebar.popouts.chat.element.find(`.message[data-message-id=${data._id}]`).hide();
+  ui.sidebar.popouts.chat.element
+    .find(`.message[data-message-id=${data._id}]`)
+    .hide();
 }
 ```
 
@@ -88,26 +90,26 @@ For an example of what that might look like, see the PDFoundry compatibility hoo
 ```javascript
 // app: is the foundry application being popped out.
 // popout: is the browser window object where the popped out element will be moved.
-Hooks.callAll('PopOut:popout', app, popout);
+Hooks.callAll("PopOut:popout", app, popout);
 
 // app: is the foundry application being popped out.
 // node: is the html element of the application after it has been moved to the new window.
-Hooks.callAll('Popout:loaded', app, node);
+Hooks.callAll("Popout:loaded", app, node);
 
 // app: is the foundry application being popped out.
 // popout: is the browser window object where the popped out element will be moved.
-Hooks.callAll('Popout:loading', app, popout);
+Hooks.callAll("Popout:loading", app, popout);
 
 // app: is the foundry application being popped in.
-Hooks.callAll('PopOut:popin', app);
+Hooks.callAll("PopOut:popin", app);
 
 // app: is the foundry application being popped out.
 // parent: The application that PopOut believes owns the diaglog box.
-Hooks.callAll('PopOut:dialog', app, parent);
+Hooks.callAll("PopOut:dialog", app, parent);
 
 // app: is the foundry application being popped out.
 // node: is the html element of the popped out application, before it is deleted or popped in.
-Hooks.callAll('PopOut:close', app, node);
+Hooks.callAll("PopOut:close", app, node);
 ```
 
 # License

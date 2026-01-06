@@ -21,11 +21,11 @@ export default [
         FontConfig: "readonly",
         Hooks: "readonly",
         $: "readonly",
-        jQuery: "readonly"
-      }
+        jQuery: "readonly",
+      },
     },
     rules: {
       // Add any custom rules here
-    }
-  }
+    },
+  },
 ];

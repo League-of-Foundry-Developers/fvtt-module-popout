@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version number (e.g., 2.22)'
+        description: "Version number (e.g., 2.22)"
         required: true
         type: string
       release_notes:
-        description: 'Release notes (brief description of changes)'
+        description: "Release notes (brief description of changes)"
         required: true
         type: string
 
@@ -25,8 +25,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
