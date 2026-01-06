@@ -1198,8 +1198,8 @@ class PopoutModule {
         // event handler will also fail. But that is bad practice.
         // The following regex will find examples of delegated event handlers in foundry.js
         // `on\(("|')[^'"]+("|'), *("|')`
-        // Only attach jQuery delegated events for ApplicationV1
         if (!isApplicationV2) {
+          // ApplicationV1 - attach jQuery delegated events
           const jBody = $(body);
           if (game.release.generation < 13) {
             jBody.on(
@@ -1222,6 +1222,15 @@ class PopoutModule {
             "a.inline-roll",
             window.TextEditor._onClickInlineRoll,
           );
+        } else {
+          // ApplicationV2 - attach native event listener for inline rolls
+          // Content links are handled by v13's internal event system, but inline-roll needs manual handling
+          body.addEventListener("click", (event) => {
+            const inlineRoll = event.target.closest("a.inline-roll");
+            if (inlineRoll && window.TextEditor._onClickInlineRoll) {
+              window.TextEditor._onClickInlineRoll(event);
+            }
+          });
         }
       }
 
