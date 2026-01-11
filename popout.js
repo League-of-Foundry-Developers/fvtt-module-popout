@@ -1198,39 +1198,51 @@ class PopoutModule {
         // event handler will also fail. But that is bad practice.
         // The following regex will find examples of delegated event handlers in foundry.js
         // `on\(("|')[^'"]+("|'), *("|')`
-        if (!isApplicationV2) {
-          // ApplicationV1 - attach jQuery delegated events
+        if (game.release.generation >= 13) {
+          // v13+ uses native event listeners on document.body which don't transfer to popouts
+          // Reimplement TextEditor.activateListeners() for the popout body
+          // Capture main window reference for use in event handler
+          const mainWindow = window;
+          body.addEventListener("click", async (event) => {
+            // Handle content links (a[data-link]) - replicate TextEditor.#onClickContentLink
+            const contentLink = event.target.closest("a[data-link]");
+            if (contentLink) {
+              event.preventDefault();
+              // Use main window's fromUuid to resolve the document
+              const doc = await mainWindow.fromUuid(contentLink.dataset.uuid);
+              if (doc?._onClickDocumentLink) {
+                doc._onClickDocumentLink(event);
+              }
+              return;
+            }
+            // Handle inline rolls
+            const inlineRoll = event.target.closest("a.inline-roll");
+            if (inlineRoll && mainWindow.TextEditor._onClickInlineRoll) {
+              mainWindow.TextEditor._onClickInlineRoll(event);
+            }
+          });
+        } else if (!isApplicationV2) {
+          // v10-v12 ApplicationV1 - attach jQuery delegated events
           const jBody = $(body);
-          if (game.release.generation < 13) {
-            jBody.on(
-              "click",
-              "a.content-link",
-              window.TextEditor._onClickEntityLink !== undefined
-                ? window.TextEditor._onClickEntityLink
-                : window.TextEditor._onClickContentLink,
-            );
-            jBody.on(
-              "dragstart",
-              "a.content-link",
-              window.TextEditor._onDragEntityLink !== undefined
-                ? window.TextEditor._onDragEntityLink
-                : window.TextEditor._onDragContentLink,
-            );
-          }
+          jBody.on(
+            "click",
+            "a.content-link",
+            window.TextEditor._onClickEntityLink !== undefined
+              ? window.TextEditor._onClickEntityLink
+              : window.TextEditor._onClickContentLink,
+          );
+          jBody.on(
+            "dragstart",
+            "a.content-link",
+            window.TextEditor._onDragEntityLink !== undefined
+              ? window.TextEditor._onDragEntityLink
+              : window.TextEditor._onDragContentLink,
+          );
           jBody.on(
             "click",
             "a.inline-roll",
             window.TextEditor._onClickInlineRoll,
           );
-        } else {
-          // ApplicationV2 - attach native event listener for inline rolls
-          // Content links are handled by v13's internal event system, but inline-roll needs manual handling
-          body.addEventListener("click", (event) => {
-            const inlineRoll = event.target.closest("a.inline-roll");
-            if (inlineRoll && window.TextEditor._onClickInlineRoll) {
-              window.TextEditor._onClickInlineRoll(event);
-            }
-          });
         }
       }
 
