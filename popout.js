@@ -1188,22 +1188,24 @@ class PopoutModule {
         }
       });
 
-      // COMPAT(posnet: 2022-09-17) v9
-
-      if (game.release.generation < 10) {
-        // From: TextEditor.activateListeners();
-        // These event listeners don't get migrated because they are attached to a jQuery
-        // selected body. This could be more of an issue in future as anyone doing a delegated
-        // event handler will also fail. But that is bad practice.
-        // The following regex will find examples of delegated event handlers in foundry.js
-        // `on\(("|')[^'"]+("|'), *("|')`
+      // Attach TextEditor event handlers to popout body
+      // v9-v12 used jQuery delegated events on document.body - these don't transfer to popouts
+      // v13+ uses native addEventListener on document.body - captured and replayed via our interception
+      if (game.release.generation >= 13) {
+        // Replay all captured document.body event listeners onto the popout body
+        for (const { type, listener, options } of _popoutBodyEventListeners) {
+          body.addEventListener(type, listener, options);
+        }
+        this.log(
+          `Replayed ${_popoutBodyEventListeners.length} document.body event listeners to popout`,
+        );
+      } else if (game.release.generation < 10) {
+        // COMPAT(v9): entity-link was renamed to content-link in v10
         const jBody = $(body);
         jBody.on(
           "click",
           "a.entity-link",
-          window.TextEditor._onClickEntityLink !== undefined
-            ? window.TextEditor._onClickEntityLink
-            : window.TextEditor._onClickContentLink,
+          window.TextEditor._onClickEntityLink,
         );
         jBody.on(
           "dragstart",
@@ -1215,46 +1217,24 @@ class PopoutModule {
           "a.inline-roll",
           window.TextEditor._onClickInlineRoll,
         );
-      } else {
-        // From: TextEditor.activateListeners();
-        // These event listeners don't get migrated because they are attached to a jQuery
-        // selected body. This could be more of an issue in future as anyone doing a delegated
-        // event handler will also fail. But that is bad practice.
-        // The following regex will find examples of delegated event handlers in foundry.js
-        // `on\(("|')[^'"]+("|'), *("|')`
-        if (game.release.generation >= 13) {
-          // v13+ uses native event listeners on document.body which don't transfer to popouts
-          // Replay all captured document.body event listeners onto the popout body
-          // These were captured at script load time via our addEventListener interception
-          for (const { type, listener, options } of _popoutBodyEventListeners) {
-            body.addEventListener(type, listener, options);
-          }
-          this.log(
-            `Replayed ${_popoutBodyEventListeners.length} document.body event listeners to popout`,
-          );
-        } else if (!isApplicationV2) {
-          // v10-v12 ApplicationV1 - attach jQuery delegated events
-          const jBody = $(body);
-          jBody.on(
-            "click",
-            "a.content-link",
-            window.TextEditor._onClickEntityLink !== undefined
-              ? window.TextEditor._onClickEntityLink
-              : window.TextEditor._onClickContentLink,
-          );
-          jBody.on(
-            "dragstart",
-            "a.content-link",
-            window.TextEditor._onDragEntityLink !== undefined
-              ? window.TextEditor._onDragEntityLink
-              : window.TextEditor._onDragContentLink,
-          );
-          jBody.on(
-            "click",
-            "a.inline-roll",
-            window.TextEditor._onClickInlineRoll,
-          );
-        }
+      } else if (!isApplicationV2) {
+        // v10-v12 ApplicationV1
+        const jBody = $(body);
+        jBody.on(
+          "click",
+          "a.content-link",
+          window.TextEditor._onClickContentLink,
+        );
+        jBody.on(
+          "dragstart",
+          "a.content-link",
+          window.TextEditor._onDragContentLink,
+        );
+        jBody.on(
+          "click",
+          "a.inline-roll",
+          window.TextEditor._onClickInlineRoll,
+        );
       }
 
       popout.game = game;
