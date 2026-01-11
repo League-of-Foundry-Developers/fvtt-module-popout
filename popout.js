@@ -223,6 +223,25 @@ class PopoutModule {
         }
         return elem;
       }.bind(this);
+
+      // Patch Node.prototype.contains to handle cross-document checks
+      // This fixes TooltipManager's document.body.contains(element) check for popout elements
+      const origContains = Node.prototype.contains;
+      Node.prototype.contains = function (other) {
+        // If checking main document.body but element is in a different document,
+        // check that document's body instead
+        if (
+          this === document.body &&
+          other?.ownerDocument &&
+          other.ownerDocument !== document
+        ) {
+          return other.ownerDocument.body.contains(other);
+        }
+        return origContains.call(this, other);
+      };
+
+      // Patch TooltipManager to work with popout windows
+      this._patchTooltipManager();
     }
 
     // NOTE(posnet: 2022-03-13): We need to overwrite the behavior of the hasFocus method of
@@ -305,6 +324,142 @@ class PopoutModule {
     const config = { target: elem[0], plugins: CONFIG.TinyMCE.plugins };
     const editor = await tinyMCE.init(config);
     editor[0].remove();
+  }
+
+  /**
+   * Patch the global TooltipManager to work with popout windows.
+   * This allows tooltips to appear in the correct window when hovering
+   * over elements that have been moved to a popout.
+   */
+  _patchTooltipManager() {
+    if (!game.tooltip) return;
+
+    const tooltip = game.tooltip;
+    const mainTooltipElement = tooltip.tooltip;
+
+    // Wrap activate() to use the correct tooltip element for the element's document
+    const origActivate = tooltip.activate.bind(tooltip);
+    tooltip.activate = function (element, options = {}) {
+      const ownerDoc = element?.ownerDocument;
+      const win = ownerDoc?.defaultView;
+
+      // If element is in a popout window, use that window's tooltip element
+      if (win && win !== window) {
+        const popoutTooltip = ownerDoc.getElementById("tooltip");
+        if (popoutTooltip) {
+          this.tooltip = popoutTooltip;
+          this._popoutWindow = win; // Store for positioning methods
+        }
+      } else {
+        this.tooltip = mainTooltipElement;
+        this._popoutWindow = null;
+      }
+
+      return origActivate(element, options);
+    };
+
+    // Wrap deactivate() to restore the main tooltip element
+    const origDeactivate = tooltip.deactivate.bind(tooltip);
+    tooltip.deactivate = function () {
+      const result = origDeactivate();
+      this.tooltip = mainTooltipElement;
+      this._popoutWindow = null;
+      return result;
+    };
+
+    // Patch _determineDirection to use correct window dimensions
+    const origDetermineDirection = tooltip._determineDirection.bind(tooltip);
+    tooltip._determineDirection = function () {
+      const win = this._popoutWindow || window;
+      const pos = this.element.getBoundingClientRect();
+      const dirs = this.constructor.TOOLTIP_DIRECTIONS;
+      return dirs[
+        pos.y + this.tooltip.offsetHeight > win.innerHeight ? "UP" : "DOWN"
+      ];
+    };
+
+    // Patch _setAnchor to use correct window dimensions
+    const origSetAnchor = tooltip._setAnchor.bind(tooltip);
+    tooltip._setAnchor = function (direction) {
+      const win = this._popoutWindow || window;
+      const directions = this.constructor.TOOLTIP_DIRECTIONS;
+      const pad = this.constructor.TOOLTIP_MARGIN_PX;
+      const pos = this.element.getBoundingClientRect();
+      const style = {};
+
+      switch (direction) {
+        case directions.DOWN:
+          style.textAlign = "center";
+          style.left = pos.left - this.tooltip.offsetWidth / 2 + pos.width / 2;
+          style.top = pos.bottom + pad;
+          break;
+        case directions.LEFT:
+          style.textAlign = "left";
+          style.right = win.innerWidth - pos.left + pad;
+          style.top = pos.top + pos.height / 2 - this.tooltip.offsetHeight / 2;
+          break;
+        case directions.RIGHT:
+          style.textAlign = "right";
+          style.left = pos.right + pad;
+          style.top = pos.top + pos.height / 2 - this.tooltip.offsetHeight / 2;
+          break;
+        case directions.UP:
+          style.textAlign = "center";
+          style.left = pos.left - this.tooltip.offsetWidth / 2 + pos.width / 2;
+          style.bottom = win.innerHeight - pos.top + pad;
+          break;
+        case directions.CENTER:
+          style.textAlign = "center";
+          style.left = pos.left - this.tooltip.offsetWidth / 2 + pos.width / 2;
+          style.top = pos.top + pos.height / 2 - this.tooltip.offsetHeight / 2;
+          break;
+      }
+
+      return this._setStyle(style);
+    };
+
+    // Patch _setStyle to use correct window dimensions
+    const origSetStyle = tooltip._setStyle.bind(tooltip);
+    tooltip._setStyle = function (position = {}) {
+      const win = this._popoutWindow || window;
+      const pad = this.constructor.TOOLTIP_MARGIN_PX;
+      position = {
+        top: null,
+        right: null,
+        bottom: null,
+        left: null,
+        textAlign: "left",
+        ...position,
+      };
+      const style = this.tooltip.style;
+
+      // Left or Right
+      const maxW = win.innerWidth - this.tooltip.offsetWidth;
+      if (position.left)
+        position.left = Math.clamp(position.left, pad, maxW - pad);
+      if (position.right)
+        position.right = Math.clamp(position.right, pad, maxW - pad);
+
+      // Top or Bottom
+      const maxH = win.innerHeight - this.tooltip.offsetHeight;
+      if (position.top)
+        position.top = Math.clamp(position.top, pad, maxH - pad);
+      if (position.bottom)
+        position.bottom = Math.clamp(position.bottom, pad, maxH - pad);
+
+      // Assign styles
+      for (const k of ["top", "right", "bottom", "left"]) {
+        const v = position[k];
+        style[k] = v ? `${v}px` : null;
+      }
+
+      this.tooltip.classList.remove(
+        ...["center", "left", "right"].map((dir) => `text-${dir}`),
+      );
+      this.tooltip.classList.add(`text-${position.textAlign}`);
+    };
+
+    this.log("Patched TooltipManager for popout support");
   }
 
   async addPopout(app) {
@@ -664,23 +819,14 @@ class PopoutModule {
     cssFix.appendChild(document.createTextNode(cssFixContent));
     head.appendChild(cssFix);
 
-    // BROKEN(posnet: 2024-08-19): Giving up on tooltips for the moment
-    // I have a branch with a sort of viable solution, but it will be even more
-    // brittle, and I am very hesitant to commit to supporting it.
-    // // COMPAT(posnet: 2022-05-05):
-    // // Last ditch effort to support tooltips. By far the worst hack I've needed to do.
-    // // Basically I have just embedded a copy of the TooltipManager class from the base game directly
-    // // into the popped out window because all other attempts to hack arround it have failed,
-    // // either because it's extensive use of window and document methods, or the fact that it uses
-    // // private js members. If this breaks again, I will most likely just leave it broken.
-    // const tooltipNode = document.createElement("aside");
-    // tooltipNode.id = "tooltip";
-    // tooltipNode.role = "tooltip";
-    // body.appendChild(tooltipNode);
-
-    // const tooltipFix = document.createElement("script");
-    // tooltipFix.appendChild(document.createTextNode(this.TOOLTIP_CODE));
-    // head.append(tooltipFix);
+    // Create tooltip element for this popout window
+    // The main window's TooltipManager will be patched to use this element
+    // when activating tooltips for elements in this popout
+    const tooltipNode = document.createElement("aside");
+    tooltipNode.id = "tooltip";
+    tooltipNode.role = "tooltip";
+    tooltipNode.popover = "manual";
+    body.appendChild(tooltipNode);
 
     html.appendChild(head);
     html.appendChild(body);
@@ -1238,13 +1384,6 @@ class PopoutModule {
       }
 
       popout.game = game;
-
-      // Only try to setup tooltip manager if it exists
-      if (popout.tooltip_manager && popout.document.getElementById("tooltip")) {
-        popout.tooltip_manager.tooltip =
-          popout.document.getElementById("tooltip");
-        popout.tooltip_manager.activateEventListeners();
-      }
 
       Hooks.callAll("PopOut:loaded", app, state.node);
     });
