@@ -1,5 +1,29 @@
 "use strict";
 
+// Intercept document.body event listeners at load time (before any hooks run)
+// This captures handlers from Foundry core, game systems, and other modules
+// so we can replay them on popout window bodies
+const _popoutBodyEventListeners = [];
+const _origAddEventListener = EventTarget.prototype.addEventListener;
+const _origRemoveEventListener = EventTarget.prototype.removeEventListener;
+
+EventTarget.prototype.addEventListener = function (type, listener, options) {
+  if (this === document.body && typeof listener === "function") {
+    _popoutBodyEventListeners.push({ type, listener, options });
+  }
+  return _origAddEventListener.call(this, type, listener, options);
+};
+
+EventTarget.prototype.removeEventListener = function (type, listener, options) {
+  if (this === document.body && typeof listener === "function") {
+    const idx = _popoutBodyEventListeners.findIndex(
+      (h) => h.type === type && h.listener === listener,
+    );
+    if (idx >= 0) _popoutBodyEventListeners.splice(idx, 1);
+  }
+  return _origRemoveEventListener.call(this, type, listener, options);
+};
+
 class PopoutModule {
   constructor() {
     this.poppedOut = new Map();
@@ -1200,27 +1224,14 @@ class PopoutModule {
         // `on\(("|')[^'"]+("|'), *("|')`
         if (game.release.generation >= 13) {
           // v13+ uses native event listeners on document.body which don't transfer to popouts
-          // Reimplement TextEditor.activateListeners() for the popout body
-          // Capture main window reference for use in event handler
-          const mainWindow = window;
-          body.addEventListener("click", async (event) => {
-            // Handle content links (a[data-link]) - replicate TextEditor.#onClickContentLink
-            const contentLink = event.target.closest("a[data-link]");
-            if (contentLink) {
-              event.preventDefault();
-              // Use main window's fromUuid to resolve the document
-              const doc = await mainWindow.fromUuid(contentLink.dataset.uuid);
-              if (doc?._onClickDocumentLink) {
-                doc._onClickDocumentLink(event);
-              }
-              return;
-            }
-            // Handle inline rolls
-            const inlineRoll = event.target.closest("a.inline-roll");
-            if (inlineRoll && mainWindow.TextEditor._onClickInlineRoll) {
-              mainWindow.TextEditor._onClickInlineRoll(event);
-            }
-          });
+          // Replay all captured document.body event listeners onto the popout body
+          // These were captured at script load time via our addEventListener interception
+          for (const { type, listener, options } of _popoutBodyEventListeners) {
+            body.addEventListener(type, listener, options);
+          }
+          this.log(
+            `Replayed ${_popoutBodyEventListeners.length} document.body event listeners to popout`,
+          );
         } else if (!isApplicationV2) {
           // v10-v12 ApplicationV1 - attach jQuery delegated events
           const jBody = $(body);
