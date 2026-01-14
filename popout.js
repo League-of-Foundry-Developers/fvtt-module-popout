@@ -420,7 +420,11 @@ class PopoutModule {
         // Mirror content from main tooltip to popout tooltip
         // Don't mirror empty content (happens when deactivate clears main tooltip)
         // Don't mirror if it's just the loading spinner (popout already has it)
-        if (content && content !== activePopoutTooltip.innerHTML && !content.includes("fa-spinner")) {
+        if (
+          content &&
+          content !== activePopoutTooltip.innerHTML &&
+          !content.includes("fa-spinner")
+        ) {
           activePopoutTooltip.innerHTML = content;
           PopoutModule.singleton.log("Mirrored content to popout");
         }
@@ -524,7 +528,9 @@ class PopoutModule {
         mainTooltipElement.style.visibility = "hidden";
         mainTooltipElement.style.pointerEvents = "none";
         mainTooltipElement.classList.add("active");
-        PopoutModule.singleton.log("Triggered active class on main tooltip for dnd5e observer");
+        PopoutModule.singleton.log(
+          "Triggered active class on main tooltip for dnd5e observer",
+        );
       }
 
       return result;
@@ -926,7 +932,10 @@ class PopoutModule {
 
     // Ensure we have a valid element before proceeding
     if (!dialogNode) {
-      this.log("Cannot move dialog - no element found for", app.constructor.name);
+      this.log(
+        "Cannot move dialog - no element found for",
+        app.constructor.name,
+      );
       return;
     }
 
