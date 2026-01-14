@@ -388,12 +388,25 @@ class PopoutModule {
    */
   _patchTooltipManager() {
     if (!game.tooltip) return;
+
+    const tooltip = game.tooltip;
+
+    // If tooltip support is disabled, we still need to prevent tooltips from
+    // appearing in the main window when hovering over popout elements
     if (!game.settings.get("popout", "enableTooltips")) {
-      this.log("Tooltip support disabled by settings");
+      this.log("Tooltip support disabled - blocking popout tooltips");
+      const origActivate = tooltip.activate.bind(tooltip);
+      tooltip.activate = function (element, options = {}) {
+        const ownerDoc = element?.ownerDocument;
+        const win = ownerDoc?.defaultView;
+        const isPopout = win && win !== window;
+        // Block tooltip activation for popout elements
+        if (isPopout) return;
+        return origActivate(element, options);
+      };
       return;
     }
 
-    const tooltip = game.tooltip;
     const mainTooltipElement = tooltip.tooltip;
 
     // Track which tooltip element is currently in use and whether it's a popout
