@@ -390,6 +390,8 @@ class PopoutModule {
     if (!game.tooltip) return;
 
     const tooltip = game.tooltip;
+    // Capture reference to module for use in wrapped functions where `this` is game.tooltip
+    const popoutModule = this;
 
     // If tooltip support is disabled, we still need to prevent tooltips from
     // appearing in the main window when hovering over popout elements
@@ -418,29 +420,38 @@ class PopoutModule {
     let isActivating = false;
 
     // MutationObserver to mirror content from main tooltip to popout tooltip.
-    // This is essential for dnd5e support: dnd5e's Tooltips5e class caches its own
-    // reference to the main tooltip element and writes content there asynchronously.
-    // By observing mutations on the main tooltip, we can mirror that content to the
-    // popout tooltip that the user actually sees.
+    // This is essential for dnd5e support: dnd5e's Tooltips5e class uses a getter
+    // `get tooltip() { return document.getElementById("tooltip"); }` which always
+    // returns the main window's tooltip (since our getElementById patch prioritizes
+    // main window). dnd5e writes async content (like property attribution) directly
+    // to this element, bypassing our swapped `game.tooltip.tooltip`.
+    //
+    // NOTE: This observer intentionally lives for the session lifetime. It's only
+    // created once during init and tooltip support is always active. Disconnecting
+    // would break dnd5e tooltip mirroring for all subsequent popouts.
     const observer = new MutationObserver((mutations) => {
+      if (!activePopoutTooltip || activePopoutTooltip === mainTooltipElement) {
+        return;
+      }
       const content = mainTooltipElement.innerHTML;
-      PopoutModule.singleton.log("MutationObserver fired:", {
+      popoutModule.log("MutationObserver fired:", {
         activePopoutTooltip: !!activePopoutTooltip,
         mainContent: content?.substring(0, 100),
-        hasSpinner: content?.includes("fa-spinner"),
       });
-      if (activePopoutTooltip && activePopoutTooltip !== mainTooltipElement) {
-        // Mirror content from main tooltip to popout tooltip
-        // Don't mirror empty content (happens when deactivate clears main tooltip)
-        // Don't mirror if it's just the loading spinner (popout already has it)
-        if (
-          content &&
-          content !== activePopoutTooltip.innerHTML &&
-          !content.includes("fa-spinner")
-        ) {
-          activePopoutTooltip.innerHTML = content;
-          PopoutModule.singleton.log("Mirrored content to popout");
-        }
+      // Mirror content from main tooltip to popout tooltip
+      // Don't mirror empty content (happens when deactivate clears main tooltip)
+      // Don't mirror if it's just a loading spinner (popout already has it)
+      // Use querySelector for robust spinner detection across FA versions
+      const isLoadingSpinner =
+        mainTooltipElement.querySelector(".fa-spinner, .fa-spin, .loading") !==
+        null;
+      if (
+        content &&
+        content !== activePopoutTooltip.innerHTML &&
+        !isLoadingSpinner
+      ) {
+        activePopoutTooltip.innerHTML = content;
+        popoutModule.log("Mirrored content to popout tooltip");
       }
     });
 
@@ -459,7 +470,7 @@ class PopoutModule {
       const win = ownerDoc?.defaultView;
       const isPopout = win && win !== window;
 
-      PopoutModule.singleton.log("Tooltip activate:", {
+      popoutModule.log("Tooltip activate:", {
         element,
         isPopout,
       });
@@ -501,7 +512,7 @@ class PopoutModule {
       this._popoutWindow = isPopout ? win : null;
 
       if (isPopout) {
-        PopoutModule.singleton.log("Using popout tooltip element");
+        popoutModule.log("Using popout tooltip element");
       }
 
       const result = origActivate(element, options);
@@ -510,7 +521,7 @@ class PopoutModule {
       isActivating = false;
 
       // Debug: log what content was set
-      PopoutModule.singleton.log("Tooltip content after activate:", {
+      popoutModule.log("Tooltip content after activate:", {
         innerHTML: this.tooltip.innerHTML?.substring(0, 100),
         isPopout,
         tooltipElement: this.tooltip,
@@ -541,7 +552,7 @@ class PopoutModule {
         mainTooltipElement.style.visibility = "hidden";
         mainTooltipElement.style.pointerEvents = "none";
         mainTooltipElement.classList.add("active");
-        PopoutModule.singleton.log(
+        popoutModule.log(
           "Triggered active class on main tooltip for dnd5e observer",
         );
       }
@@ -558,12 +569,17 @@ class PopoutModule {
       }
 
       // If we had a popout active, also deactivate the main tooltip we triggered for dnd5e
+      // Wrap in try/catch to ensure cleanup completes even if DOM manipulation fails
       if (activePopoutTooltip && activePopoutTooltip !== mainTooltipElement) {
-        mainTooltipElement.classList.remove("active");
-        mainTooltipElement.innerHTML = "";
-        // Restore visibility for normal tooltip usage
-        mainTooltipElement.style.visibility = "";
-        mainTooltipElement.style.pointerEvents = "";
+        try {
+          mainTooltipElement.classList.remove("active");
+          mainTooltipElement.innerHTML = "";
+          // Restore visibility for normal tooltip usage
+          mainTooltipElement.style.visibility = "";
+          mainTooltipElement.style.pointerEvents = "";
+        } catch (e) {
+          popoutModule.log("Error cleaning up main tooltip:", e);
+        }
       }
 
       const result = origDeactivate();
