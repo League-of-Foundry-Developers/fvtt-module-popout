@@ -7,6 +7,10 @@
   "POPOUT.useWindowsHint": "Force a ficha destacada a ser uma janela com decorações mínimas. Caso contrário, usa o padrão do seu navegador (provavelmente uma nova guia)",
   "POPOUT.boundingBox": "Modo de Compatibilidade de Caixa Delimitadora",
   "POPOUT.boundingBoxHint": "Permite um algoritmo mais complexo para calcular o tamanho da janela. Isso é necessário quando as fichas de personagem têm designs complicados que podem ultrapassar sua caixa delimitadora regular. Ativar esta opção pode impactar negativamente o desempenho.",
+  "POPOUT.verboseLogs": "Habilitar registro detalhado",
+  "POPOUT.verboseLogsHint": "Habilita o registro detalhado do módulo no console. Útil para depurar problemas.",
+  "POPOUT.enableTooltips": "Habilitar suporte a tooltips",
+  "POPOUT.enableTooltipsHint": "Permite que as dicas de ferramentas sejam exibidas corretamente nas janelas externas. Desative se tiver problemas com tooltips.",
   "POPOUT.electronWarning": "PopOut! não funciona com o aplicativo do FoundryVTT. Abra seu jogo a partir de um navegador.",
   "POPOUT.failureWarning": "Não é possível abrir a janela do PopOut!. Verifique as configurações/permissões do seu site. Clique em <i class='fas fa-info-circle'></i> à esquerda do URL do site."
 }
