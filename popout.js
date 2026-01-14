@@ -165,16 +165,16 @@ class PopoutModule {
       type: Boolean,
     });
     game.settings.register("popout", "verboseLogs", {
-      name: "Enable more module logging.",
-      hint: "Enables more verbose module logging. This is useful for debugging the module. But otherwise should be left off.",
+      name: game.i18n.localize("POPOUT.verboseLogs"),
+      hint: game.i18n.localize("POPOUT.verboseLogsHint"),
       scope: "client",
       config: true,
       default: false,
       type: Boolean,
     });
     game.settings.register("popout", "enableTooltips", {
-      name: "Enable tooltip support in popouts.",
-      hint: "Enables tooltips to display correctly in popped out windows. Disable if you experience tooltip-related issues.",
+      name: game.i18n.localize("POPOUT.enableTooltips"),
+      hint: game.i18n.localize("POPOUT.enableTooltipsHint"),
       scope: "client",
       config: true,
       default: true,
