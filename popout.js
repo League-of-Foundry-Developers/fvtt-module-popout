@@ -168,8 +168,16 @@ class PopoutModule {
       name: "Enable more module logging.",
       hint: "Enables more verbose module logging. This is useful for debugging the module. But otherwise should be left off.",
       scope: "client",
-      config: false,
+      config: true,
       default: false,
+      type: Boolean,
+    });
+    game.settings.register("popout", "enableTooltips", {
+      name: "Enable tooltip support in popouts.",
+      hint: "Enables tooltips to display correctly in popped out windows. Disable if you experience tooltip-related issues.",
+      scope: "client",
+      config: true,
+      default: true,
       type: Boolean,
     });
 
@@ -330,40 +338,218 @@ class PopoutModule {
    * Patch the global TooltipManager to work with popout windows.
    * This allows tooltips to appear in the correct window when hovering
    * over elements that have been moved to a popout.
+   *
+   * ## Background
+   *
+   * Foundry's TooltipManager is a singleton that manages a single tooltip element
+   * (`<aside id="tooltip">`) in the main document. When elements are moved to a popout
+   * window, the tooltip system faces several challenges:
+   *
+   * 1. The tooltip element exists only in the main window's DOM
+   * 2. TooltipManager uses `window.innerWidth/Height` for positioning (wrong window)
+   * 3. `document.body.contains()` checks fail for elements in other documents
+   *
+   * ## Solution Overview
+   *
+   * We create a tooltip element in each popout window and patch TooltipManager to:
+   * - Detect when the hovered element is in a popout (via ownerDocument)
+   * - Use the popout's tooltip element instead of the main one
+   * - Use the correct window dimensions for positioning
+   *
+   * ## dnd5e-Specific Handling
+   *
+   * The dnd5e system adds complexity with its Tooltips5e class (module/tooltips.mjs):
+   *
+   * 1. **Cached Element Reference**: dnd5e caches `document.getElementById("tooltip")`
+   *    at module initialization time, before any popout windows exist.
+   *
+   * 2. **MutationObserver Pattern**: dnd5e watches the main tooltip's class attribute
+   *    for "active" to trigger async content loading (e.g., actor property attribution).
+   *
+   * 3. **Async Content Updates**: When dnd5e loads tooltip content, it writes directly
+   *    to its cached element reference, bypassing our swapped `game.tooltip.tooltip`.
+   *
+   * ## dnd5e Workaround
+   *
+   * To support dnd5e's async tooltips in popouts:
+   *
+   * 1. When activating a tooltip for a popout element, we ALSO trigger "active" on
+   *    the main tooltip element (hidden visually) so dnd5e's observer fires.
+   *
+   * 2. We use a MutationObserver on the main tooltip to detect when dnd5e writes
+   *    content to it, then mirror that content to the active popout tooltip.
+   *
+   * 3. We must remove/re-add the "active" class (not just add) to ensure the
+   *    MutationObserver fires even when quickly switching between tooltips.
+   *
+   * 4. The `isActivating` flag prevents our deactivate wrapper from clearing
+   *    `activePopoutTooltip` during the internal deactivate call that
+   *    TooltipManager.activate() makes before setting up a new tooltip.
    */
   _patchTooltipManager() {
     if (!game.tooltip) return;
+    if (!game.settings.get("popout", "enableTooltips")) {
+      this.log("Tooltip support disabled by settings");
+      return;
+    }
 
     const tooltip = game.tooltip;
     const mainTooltipElement = tooltip.tooltip;
+
+    // Track which tooltip element is currently in use and whether it's a popout
+    let currentTooltipElement = mainTooltipElement;
+    let activePopoutTooltip = null; // The popout tooltip element when a popout is active
+    // Flag to prevent deactivate from clearing activePopoutTooltip during internal deactivate.
+    // TooltipManager.activate() calls deactivate() internally before setting up a new tooltip,
+    // and we need activePopoutTooltip to persist through that internal call.
+    let isActivating = false;
+
+    // MutationObserver to mirror content from main tooltip to popout tooltip.
+    // This is essential for dnd5e support: dnd5e's Tooltips5e class caches its own
+    // reference to the main tooltip element and writes content there asynchronously.
+    // By observing mutations on the main tooltip, we can mirror that content to the
+    // popout tooltip that the user actually sees.
+    const observer = new MutationObserver((mutations) => {
+      const content = mainTooltipElement.innerHTML;
+      PopoutModule.singleton.log("MutationObserver fired:", {
+        activePopoutTooltip: !!activePopoutTooltip,
+        mainContent: content?.substring(0, 100),
+        hasSpinner: content?.includes("fa-spinner"),
+      });
+      if (activePopoutTooltip && activePopoutTooltip !== mainTooltipElement) {
+        // Mirror content from main tooltip to popout tooltip
+        // Don't mirror empty content (happens when deactivate clears main tooltip)
+        // Don't mirror if it's just the loading spinner (popout already has it)
+        if (content && content !== activePopoutTooltip.innerHTML && !content.includes("fa-spinner")) {
+          activePopoutTooltip.innerHTML = content;
+          PopoutModule.singleton.log("Mirrored content to popout");
+        }
+      }
+    });
+
+    observer.observe(mainTooltipElement, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+
+    this.log("MutationObserver installed on main tooltip element");
 
     // Wrap activate() to use the correct tooltip element for the element's document
     const origActivate = tooltip.activate.bind(tooltip);
     tooltip.activate = function (element, options = {}) {
       const ownerDoc = element?.ownerDocument;
       const win = ownerDoc?.defaultView;
+      const isPopout = win && win !== window;
 
-      // If element is in a popout window, use that window's tooltip element
-      if (win && win !== window) {
-        const popoutTooltip = ownerDoc.getElementById("tooltip");
-        if (popoutTooltip) {
-          this.tooltip = popoutTooltip;
-          this._popoutWindow = win; // Store for positioning methods
+      PopoutModule.singleton.log("Tooltip activate:", {
+        element,
+        isPopout,
+      });
+
+      // Set flag to prevent deactivate from clearing activePopoutTooltip
+      // (origActivate calls deactivate internally before setting up new tooltip)
+      isActivating = true;
+
+      // Determine which tooltip element to use
+      let newTooltipElement;
+      if (isPopout) {
+        newTooltipElement = ownerDoc.getElementById("tooltip");
+        if (!newTooltipElement) {
+          newTooltipElement = mainTooltipElement;
         }
+        // Track popout tooltip for content mirroring
+        activePopoutTooltip = newTooltipElement;
       } else {
-        this.tooltip = mainTooltipElement;
-        this._popoutWindow = null;
+        newTooltipElement = mainTooltipElement;
+        activePopoutTooltip = null;
       }
 
-      return origActivate(element, options);
+      // If switching tooltip elements, manually deactivate the old one first
+      if (
+        currentTooltipElement !== newTooltipElement &&
+        currentTooltipElement
+      ) {
+        currentTooltipElement.classList.remove("active");
+        try {
+          currentTooltipElement.hidePopover();
+        } catch (e) {
+          // Popover might not be showing
+        }
+      }
+
+      // Update tracking and set the tooltip element
+      currentTooltipElement = newTooltipElement;
+      this.tooltip = newTooltipElement;
+      this._popoutWindow = isPopout ? win : null;
+
+      if (isPopout) {
+        PopoutModule.singleton.log("Using popout tooltip element");
+      }
+
+      const result = origActivate(element, options);
+
+      // Clear activating flag now that origActivate is done
+      isActivating = false;
+
+      // Debug: log what content was set
+      PopoutModule.singleton.log("Tooltip content after activate:", {
+        innerHTML: this.tooltip.innerHTML?.substring(0, 100),
+        isPopout,
+        tooltipElement: this.tooltip,
+      });
+
+      // ============================================================================
+      // dnd5e Async Tooltip Support
+      // ============================================================================
+      // dnd5e's Tooltips5e class uses a MutationObserver watching for "active" class
+      // changes on the main tooltip element. When it sees "active", it checks for
+      // elements with data-uuid and asynchronously loads rich tooltip content
+      // (like property attribution tables for AC, speed, etc.).
+      //
+      // Since we're activating the POPOUT tooltip element (not the main one), dnd5e's
+      // observer never fires. To fix this, we:
+      // 1. Copy the loading spinner HTML to the main tooltip (includes data-uuid)
+      // 2. Trigger "active" on the main tooltip (hidden) to fire dnd5e's observer
+      // 3. dnd5e fetches content and writes to main tooltip (its cached reference)
+      // 4. Our MutationObserver (above) mirrors the content to the popout tooltip
+      //
+      // We must remove then re-add "active" to ensure the mutation fires even when
+      // quickly switching between tooltip targets (classList.add is a no-op if
+      // the class is already present, so no mutation would fire).
+      if (isPopout && mainTooltipElement !== this.tooltip) {
+        mainTooltipElement.classList.remove("active");
+        mainTooltipElement.innerHTML = this.tooltip.innerHTML;
+        // Hide the main tooltip - it's only used to trigger dnd5e's observer
+        mainTooltipElement.style.visibility = "hidden";
+        mainTooltipElement.style.pointerEvents = "none";
+        mainTooltipElement.classList.add("active");
+        PopoutModule.singleton.log("Triggered active class on main tooltip for dnd5e observer");
+      }
+
+      return result;
     };
 
-    // Wrap deactivate() to restore the main tooltip element
+    // Wrap deactivate() - clear popout tracking and main tooltip state
     const origDeactivate = tooltip.deactivate.bind(tooltip);
     tooltip.deactivate = function () {
+      // Skip cleanup if we're in the middle of activating (origActivate calls deactivate internally)
+      if (isActivating) {
+        return origDeactivate();
+      }
+
+      // If we had a popout active, also deactivate the main tooltip we triggered for dnd5e
+      if (activePopoutTooltip && activePopoutTooltip !== mainTooltipElement) {
+        mainTooltipElement.classList.remove("active");
+        mainTooltipElement.innerHTML = "";
+        // Restore visibility for normal tooltip usage
+        mainTooltipElement.style.visibility = "";
+        mainTooltipElement.style.pointerEvents = "";
+      }
+
       const result = origDeactivate();
-      this.tooltip = mainTooltipElement;
       this._popoutWindow = null;
+      activePopoutTooltip = null;
       return result;
     };
 
@@ -663,6 +849,11 @@ class PopoutModule {
     // get moved to the popped out window.
     // There are 3 heuristics we use to identify if something is a dialog.
 
+    // Exclude tooltip-related applications that aren't real dialogs
+    if (app.constructor.name === "PropertyAttribution") {
+      return false;
+    }
+
     // The first is to check if the app has exactly one actor, then we assume that
     // actor is this apps parent.
     if (app && app.actor && app.actor.apps) {
@@ -732,6 +923,12 @@ class PopoutModule {
     const parentId = parentApp.appId || parentApp.id;
     const parent = this.poppedOut.get(parentId);
     const dialogNode = this.getAppElement(app);
+
+    // Ensure we have a valid element before proceeding
+    if (!dialogNode) {
+      this.log("Cannot move dialog - no element found for", app.constructor.name);
+      return;
+    }
 
     // Hide element
     const setDisplay = dialogNode.style.display;
@@ -819,14 +1016,16 @@ class PopoutModule {
     cssFix.appendChild(document.createTextNode(cssFixContent));
     head.appendChild(cssFix);
 
-    // Create tooltip element for this popout window
+    // Create tooltip element for this popout window if tooltip support is enabled
     // The main window's TooltipManager will be patched to use this element
     // when activating tooltips for elements in this popout
-    const tooltipNode = document.createElement("aside");
-    tooltipNode.id = "tooltip";
-    tooltipNode.role = "tooltip";
-    tooltipNode.popover = "manual";
-    body.appendChild(tooltipNode);
+    if (game.settings.get("popout", "enableTooltips")) {
+      const tooltipNode = document.createElement("aside");
+      tooltipNode.id = "tooltip";
+      tooltipNode.role = "tooltip";
+      tooltipNode.popover = "manual";
+      body.appendChild(tooltipNode);
+    }
 
     html.appendChild(head);
     html.appendChild(body);
