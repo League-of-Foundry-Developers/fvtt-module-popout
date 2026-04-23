@@ -34,6 +34,49 @@ class PopoutModule {
     this.ID = (foundry?.utils?.randomID || randomID)(24);
   }
 
+  /**
+   * Whether `element` counts as keyboard "typing" context (Foundry hasFocus semantics).
+   * Uses the element's own Window/HTMLElement so popout documents work (cross-realm instanceof).
+   */
+  static isKeyboardTypingContext(element) {
+    if (!element || element.nodeType !== Node.ELEMENT_NODE) return false;
+    const win = element.ownerDocument?.defaultView;
+    if (!win?.HTMLElement || !(element instanceof win.HTMLElement)) return false;
+
+    const isV13 =
+      game.release?.generation >= 13 ||
+      (foundry.utils?.isNewerVersion &&
+        foundry.utils.isNewerVersion(game.version, "13.0.0"));
+
+    if (isV13) {
+      if (["", "true"].includes(element.dataset.keyboardFocus)) return true;
+      if (element.dataset.keyboardFocus === "false") return false;
+      if (["INPUT", "SELECT", "TEXTAREA"].includes(element.tagName))
+        return true;
+      if (element.isContentEditable) return true;
+      if (element.tagName === "BUTTON" && element.form) return true;
+      return false;
+    }
+    return true;
+  }
+
+  /** True if the event path includes a typing context (shadow DOM / nested editors). */
+  static keyboardEventTargetsTypingContext(event) {
+    const path =
+      typeof event.composedPath === "function" ? event.composedPath() : [];
+    const nodes = path.length ? path : event.target ? [event.target] : [];
+    for (const n of nodes) {
+      const el =
+        n?.nodeType === Node.ELEMENT_NODE
+          ? n
+          : n?.nodeType === Node.TEXT_NODE
+            ? n.parentElement
+            : null;
+      if (el && PopoutModule.isKeyboardTypingContext(el)) return true;
+    }
+    return false;
+  }
+
   log(msg, ...args) {
     if (game && game.settings.get("popout", "verboseLogs")) {
       const color = "background: #6699ff; color: #000; font-size: larger;";
@@ -265,34 +308,21 @@ class PopoutModule {
         (foundry.utils?.isNewerVersion &&
           foundry.utils.isNewerVersion(game.version, "13.0.0"));
 
-      // Helper function to check if an element has focus based on version
-      const checkElementFocus = (element) => {
-        if (!(element instanceof HTMLElement)) return false;
-
-        if (isV13) {
-          // v13 logic with dataset and specific checks
-          if (["", "true"].includes(element.dataset.keyboardFocus)) return true;
-          if (element.dataset.keyboardFocus === "false") return false;
-          if (["INPUT", "SELECT", "TEXTAREA"].includes(element.tagName))
-            return true;
-          if (element.isContentEditable) return true;
-          if (element.tagName === "BUTTON" && element.form) return true;
-          return false;
-        } else {
-          // v12 logic - any focused HTMLElement counts
-          return true;
-        }
-      };
-
       // Create the new hasFocus implementation that checks popouts
       const newHasFocus = () => {
         // Check main document
-        if (checkElementFocus(document.activeElement)) return true;
+        if (PopoutModule.isKeyboardTypingContext(document.activeElement))
+          return true;
 
         // Check all popped out windows
         for (const val of this.poppedOut.values()) {
           if (!val.window || val.window.closed) continue;
-          if (checkElementFocus(val.window.document.activeElement)) return true;
+          if (
+            PopoutModule.isKeyboardTypingContext(
+              val.window.document.activeElement,
+            )
+          )
+            return true;
         }
 
         return false;
@@ -1550,7 +1580,9 @@ class PopoutModule {
 
       // Forward keyboard events to main window for keybinding support
       // NOTE: v13 changed the keyboard API, #handleKeyboardEvent is now private
+      // Skip forwarding when typing in inputs/editors (incl. shadow DOM); core may use main-realm instanceof on event.target.
       popout.addEventListener("keydown", (event) => {
+        if (PopoutModule.keyboardEventTargetsTypingContext(event)) return;
         if (window.keyboard && window.keyboard._handleKeyboardEvent) {
           // v12 and earlier - use internal method
           window.keyboard._handleKeyboardEvent(event, false);
@@ -1561,6 +1593,7 @@ class PopoutModule {
         }
       });
       popout.addEventListener("keyup", (event) => {
+        if (PopoutModule.keyboardEventTargetsTypingContext(event)) return;
         if (window.keyboard && window.keyboard._handleKeyboardEvent) {
           // v12 and earlier - use internal method
           window.keyboard._handleKeyboardEvent(event, true);
