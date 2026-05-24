@@ -1,5 +1,8 @@
 # [PopOut!](https://foundryvtt.com/packages/popout)
 
+> [!IMPORTANT]
+> Foundry v14 now provides native support for window popouts. Planned maintenance of this module will continue for existing foundry versions, but there are currently no plans to update it to support v14. 
+
 This module adds a PopOut! button to most actor sheets, journal entries, and applications.
 
 The PopOut! button allows you to open a sheet/application/document into its own window, for easier viewing or for use with multiple monitors.
