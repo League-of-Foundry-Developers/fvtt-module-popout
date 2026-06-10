@@ -1,7 +1,7 @@
 # [PopOut!](https://foundryvtt.com/packages/popout)
 
 > [!IMPORTANT]
-> Foundry v14 now provides native support for window popouts. Planned maintenance of this module will continue for existing foundry versions, but there are currently no plans to update it to support v14. 
+> Foundry v14 now provides native support for window popouts. Planned maintenance of this module will continue for existing foundry versions, but there are currently no plans to update it to support v14.
 
 This module adds a PopOut! button to most actor sheets, journal entries, and applications.
 
