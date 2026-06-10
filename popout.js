@@ -698,12 +698,6 @@ class PopoutModule {
       return;
     }
 
-    // Check if this is a system UI element that shouldn't be popped out
-    if (this.isSystemUI(app)) {
-      this.log("Ignoring system UI element", app.constructor.name);
-      return;
-    }
-
     let waitRender = Math.floor(this.MAX_TIMEOUT / this.TIMEOUT_INTERVAL);
 
     // Check render state for both v1 and v2 apps
@@ -748,6 +742,17 @@ class PopoutModule {
     }
 
     if (this.handleChildDialog(app)) {
+      return;
+    }
+
+    // Check if this is a system UI element that shouldn't be popped out.
+    // NOTE: this runs AFTER handleChildDialog (and after the render wait) so that a
+    // child dialog of a popped-out window (e.g. a roll/level/config prompt) can follow
+    // its parent into the popout. isSystemUI classifies every constructor.name of
+    // "Dialog"/"Application" as system UI, which would otherwise block the move on v13.
+    // Standalone system dialogs are still skipped here.
+    if (this.isSystemUI(app)) {
+      this.log("Ignoring system UI element", app.constructor.name);
       return;
     }
 
@@ -949,12 +954,10 @@ class PopoutModule {
   }
 
   moveDialog(app, parentApp) {
-    // Don't move system UI dialogs
-    if (this.isSystemUI(app)) {
-      this.log("Not moving system UI dialog", app.constructor.name);
-      return;
-    }
-
+    // No isSystemUI guard here: moveDialog is only ever reached from handleChildDialog,
+    // which has already confirmed this app is a child dialog of a popped-out window. The
+    // previous guard re-blocked every constructor.name === "Dialog" app and so disabled
+    // dialog-follow entirely on v13.
     const parentId = parentApp.appId || parentApp.id;
     const parent = this.poppedOut.get(parentId);
     const dialogNode = this.getAppElement(app);
