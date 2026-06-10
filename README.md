@@ -42,6 +42,66 @@ This ensures that event handlers and other related behavior is preserved, and th
 However it does mean that the page now has 2 logical documents, not 1 because there are 2 or more windows.
 So any assumptions about being able to access something from the root window/document/jquery object are no longer true.
 
+### Writing PopOut-safe code
+
+The single rule that prevents almost all breakage: **derive the document and window from the element you are working with, not from the global `document`/`window`.** Once a sheet is popped out its elements live in another window, so `element.ownerDocument` and `element.ownerDocument.defaultView` point at the popout, while the bare globals still point at the main window.
+
+**Floating UI (tooltips, popovers) — create, append, and measure against the element's own document:**
+
+```js
+el.addEventListener("mouseenter", () => {
+  const doc = el.ownerDocument; // main OR popout, whichever holds el now
+  const win = doc.defaultView;
+  const tip = doc.createElement("div"); // not document.createElement
+  tip.className = "my-tooltip";
+  tip.textContent = el.dataset.label;
+  doc.body.appendChild(tip); // not document.body
+  const r = el.getBoundingClientRect();
+  tip.style.left = `${Math.min(r.left, win.innerWidth - tip.offsetWidth - 8)}px`;
+  tip.style.top = `${r.bottom + 4}px`;
+});
+```
+
+**Context menus from an event — use the event target's document, and bind the outside-click closer to that same document:**
+
+```js
+el.addEventListener("contextmenu", (ev) => {
+  const doc = ev.currentTarget.ownerDocument;
+  const menu = doc.createElement("div");
+  // ...build menu...
+  doc.body.appendChild(menu);
+  doc.addEventListener("click", closeMenu); // not document.addEventListener
+});
+```
+
+**A reused singleton node** (created once at render time, in the main document) must be **moved** into the element's current document before each use, because rendering happens before the pop-out:
+
+```js
+function show(el, node) {
+  const doc = el.ownerDocument;
+  if (node.ownerDocument !== doc) {
+    doc.adoptNode(node); // bare cross-document appendChild can throw WrongDocumentError
+    doc.body.appendChild(node);
+  }
+  // ...position and show node...
+}
+```
+
+**Globally delegated listeners** — a `document.addEventListener("click", ...)` that matches `ev.target.closest(".my-button")` only fires in the **main** window, so delegated handlers on chat cards, HUD elements, etc. go dead once their host is popped out. Re-bind them onto each pop-out window with the `PopOut:loaded` hook (kept idempotent via a `WeakSet`, so it is safe to call more than once):
+
+```js
+const _bound = new WeakSet();
+function onGlobalClick(handler) {
+  const bind = (doc) => {
+    if (_bound.has(doc)) return;
+    _bound.add(doc);
+    doc.addEventListener("click", handler);
+  };
+  bind(document); // main window
+  Hooks.on("PopOut:loaded", (app, node) => bind(node.ownerDocument)); // each popout
+}
+```
+
 ### Tooltips
 
 Unfortunately an update to foundry-vtt (approximately v10) has broken the built in tool-tips functionality in a way that can't be fixed easily. I have added in a very brittle fix with the latest version, but it will likely break modules that are overriding or modifying tooltip behavior, such as calling `tooltip.activate` manually, but there is nothing I can currently do about this. A notable example of something that is basically unfix-able, is the tooltip in DnD 5e that breaks down AC by effect.
@@ -90,6 +150,8 @@ PopoutModule.popoutApp(app);
 PopOut also exposes hooks to developers to alter its behavior to add compatibility to their modules.
 For an example of what that might look like, see the PDFoundry compatibility hooks in [./popout.js](./popout.js#697)
 
+All event names use the `PopOut:` prefix (capital `O`). In every signature, `app` is the Foundry application, `popout` is the new browser `window` object, and `node` is the application's root HTML element after it has been moved into the popout document (`node.ownerDocument` is therefore the popout's document — the place to re-bind per-window listeners).
+
 ```javascript
 // app: is the foundry application being popped out.
 // popout: is the browser window object where the popped out element will be moved.
@@ -97,11 +159,11 @@ Hooks.callAll("PopOut:popout", app, popout);
 
 // app: is the foundry application being popped out.
 // node: is the html element of the application after it has been moved to the new window.
-Hooks.callAll("Popout:loaded", app, node);
+Hooks.callAll("PopOut:loaded", app, node);
 
 // app: is the foundry application being popped out.
 // popout: is the browser window object where the popped out element will be moved.
-Hooks.callAll("Popout:loading", app, popout);
+Hooks.callAll("PopOut:loading", app, popout);
 
 // app: is the foundry application being popped in.
 Hooks.callAll("PopOut:popin", app);
