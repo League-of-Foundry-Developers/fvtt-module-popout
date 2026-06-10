@@ -324,14 +324,24 @@ class PopoutModule {
     // are loaded into the frame. Otherwise our popouts will not be able to access
     // the lazy loaded JavaScript mce plugins.
     // This will affect any module that lazy loads JavaScript. And require special handling.
-
-    const elem = $(
-      `<div style="display: none;"><p id="mce_init"> foo </p></div>`,
-    );
-    $("body").append(elem);
-    const config = { target: elem[0], plugins: CONFIG.TinyMCE.plugins };
-    const editor = await tinyMCE.init(config);
-    editor[0].remove();
+    // COMPAT(v14): TinyMCE is legacy (tied to the ApplicationV1 form editor, retained
+    // through ~v16) and ProseMirror is now the default engine. Guard the lazy-init so
+    // popout still loads if a future Foundry version drops the TinyMCE global/config.
+    if (typeof tinyMCE !== "undefined" && CONFIG.TinyMCE) {
+      try {
+        const elem = $(
+          `<div style="display: none;"><p id="mce_init"> foo </p></div>`,
+        );
+        $("body").append(elem);
+        const config = { target: elem[0], plugins: CONFIG.TinyMCE.plugins };
+        const editor = await tinyMCE.init(config);
+        editor[0].remove();
+      } catch (e) {
+        this.log("TinyMCE lazy-init skipped/failed", e);
+      }
+    } else {
+      this.log("TinyMCE not present; skipping lazy-init (ProseMirror-only)");
+    }
   }
 
   /**
@@ -1555,8 +1565,12 @@ class PopoutModule {
           // v12 and earlier - use internal method
           window.keyboard._handleKeyboardEvent(event, false);
         } else if (game.keyboard && game.keyboard._processKeyboardContext) {
-          // v13+ - use protected _processKeyboardContext with static getKeyboardEventContext
-          const context = KeyboardManager.getKeyboardEventContext(event, false);
+          // v13+ - use protected _processKeyboardContext with static getKeyboardEventContext.
+          // COMPAT(v15): the bare KeyboardManager global is namespaced under
+          // foundry.helpers.interaction (removed in v15); prefer it, fall back to the global.
+          const KM =
+            foundry?.helpers?.interaction?.KeyboardManager || KeyboardManager;
+          const context = KM.getKeyboardEventContext(event, false);
           game.keyboard._processKeyboardContext(context);
         }
       });
@@ -1565,8 +1579,11 @@ class PopoutModule {
           // v12 and earlier - use internal method
           window.keyboard._handleKeyboardEvent(event, true);
         } else if (game.keyboard && game.keyboard._processKeyboardContext) {
-          // v13+ - use protected _processKeyboardContext with static getKeyboardEventContext
-          const context = KeyboardManager.getKeyboardEventContext(event, true);
+          // v13+ - use protected _processKeyboardContext with static getKeyboardEventContext.
+          // COMPAT(v15): prefer the namespaced KeyboardManager, fall back to the global.
+          const KM =
+            foundry?.helpers?.interaction?.KeyboardManager || KeyboardManager;
+          const context = KM.getKeyboardEventContext(event, true);
           game.keyboard._processKeyboardContext(context);
         }
       });
