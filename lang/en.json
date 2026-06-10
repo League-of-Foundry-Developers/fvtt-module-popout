@@ -11,6 +11,6 @@
   "POPOUT.verboseLogsHint": "Enables detailed module logging in the console. Useful for debugging issues.",
   "POPOUT.enableTooltips": "Enable tooltip support",
   "POPOUT.enableTooltipsHint": "Enables tooltips to display correctly in popped out windows. Disable if you experience tooltip-related issues.",
-  "POPOUT.electronWarning": "Popout! cannot work within the standalone FVTT Application. Please open your game from a regular browser.",
+  "POPOUT.electronWarning": "PopOut! cannot open separate windows in the standalone Foundry desktop app, which blocks them for security. To use PopOut!, open your game in a web browser such as Chrome instead.",
   "POPOUT.failureWarning": "Unable to open PopOut! window. Please check your site settings/permissions. Click the <i class='fas fa-info-circle'></i> to the left of the website URL."
 }
