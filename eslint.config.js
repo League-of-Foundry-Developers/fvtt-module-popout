@@ -20,6 +20,7 @@ export default [
         Dialog: "readonly",
         FontConfig: "readonly",
         Hooks: "readonly",
+        KeyboardManager: "readonly",
         $: "readonly",
         jQuery: "readonly",
       },

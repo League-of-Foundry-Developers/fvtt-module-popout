@@ -324,14 +324,22 @@ class PopoutModule {
     // are loaded into the frame. Otherwise our popouts will not be able to access
     // the lazy loaded JavaScript mce plugins.
     // This will affect any module that lazy loads JavaScript. And require special handling.
-
-    const elem = $(
-      `<div style="display: none;"><p id="mce_init"> foo </p></div>`,
-    );
-    $("body").append(elem);
-    const config = { target: elem[0], plugins: CONFIG.TinyMCE.plugins };
-    const editor = await tinyMCE.init(config);
-    editor[0].remove();
+    // COMPAT(v14): TinyMCE is legacy. Skip lazy init if Foundry only has ProseMirror.
+    if (typeof tinyMCE !== "undefined" && CONFIG.TinyMCE) {
+      try {
+        const elem = $(
+          `<div style="display: none;"><p id="mce_init"> foo </p></div>`,
+        );
+        $("body").append(elem);
+        const config = { target: elem[0], plugins: CONFIG.TinyMCE.plugins };
+        const editor = await tinyMCE.init(config);
+        editor[0].remove();
+      } catch (e) {
+        this.log("TinyMCE lazy-init skipped/failed", e);
+      }
+    } else {
+      this.log("TinyMCE not present; skipping lazy-init (ProseMirror-only)");
+    }
   }
 
   /**
@@ -1556,7 +1564,10 @@ class PopoutModule {
           window.keyboard._handleKeyboardEvent(event, false);
         } else if (game.keyboard && game.keyboard._processKeyboardContext) {
           // v13+ - use protected _processKeyboardContext with static getKeyboardEventContext
-          const context = KeyboardManager.getKeyboardEventContext(event, false);
+          // COMPAT(v15): KeyboardManager moved under foundry.helpers.interaction
+          const KM =
+            foundry?.helpers?.interaction?.KeyboardManager || KeyboardManager;
+          const context = KM.getKeyboardEventContext(event, false);
           game.keyboard._processKeyboardContext(context);
         }
       });
@@ -1566,7 +1577,10 @@ class PopoutModule {
           window.keyboard._handleKeyboardEvent(event, true);
         } else if (game.keyboard && game.keyboard._processKeyboardContext) {
           // v13+ - use protected _processKeyboardContext with static getKeyboardEventContext
-          const context = KeyboardManager.getKeyboardEventContext(event, true);
+          // COMPAT(v15): KeyboardManager moved under foundry.helpers.interaction
+          const KM =
+            foundry?.helpers?.interaction?.KeyboardManager || KeyboardManager;
+          const context = KM.getKeyboardEventContext(event, true);
           game.keyboard._processKeyboardContext(context);
         }
       });
